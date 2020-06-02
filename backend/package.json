@@ -1,0 +1,16 @@
+{
+    "name": "coup-card-game",
+    "version": "0.0.1",
+    "description": "A web version of the indie card game 'Coup' ",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "author": "Michael Pu, Shirley Zhang",
+    "license": "ISC",
+    "dependencies": {
+        "express": "^4.14.0",
+        "socket.io": "^1.7.1",
+        "nodemon": "^2.0.4"
+    }
+}
