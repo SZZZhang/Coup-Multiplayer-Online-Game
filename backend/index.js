@@ -29,7 +29,8 @@ io.on('connection', (socket) => {
     socket.on('createRoom', (data) => {
         if (!rooms.find(data.room)) {
             socket.join(data.room);
-            rooms.push({ roomName: data.room, cards: [...cards] });
+            rooms.push(new Room(data.room, [...cards], [new Player(data.username)]));
+    
             console.log("joined new room:", data.room);
         } else {
             socket.emit('createRoomFailed',
