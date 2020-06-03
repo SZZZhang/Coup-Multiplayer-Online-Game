@@ -1,8 +1,8 @@
 class Player {
-    constructor(username){
-        this.username = 0;
+    constructor(username) {
+        this.username = username;
         this.coins = 2;
     }
-
-    
 }
+
+module.exports = Player;

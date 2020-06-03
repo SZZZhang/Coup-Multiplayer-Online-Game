@@ -4,7 +4,7 @@
     "description": "A web version of the indie card game 'Coup' ",
     "main": "index.js",
     "scripts": {
-        "start": "node index.js"
+        "start": "nodemon index.js"
     },
     "author": "Michael Pu, Shirley Zhang",
     "license": "ISC",
