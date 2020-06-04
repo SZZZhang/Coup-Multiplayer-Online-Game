@@ -53,8 +53,15 @@ io.on('connection', (socket) => {
                 room.players.push(player);
                 allPlayers[socket.id] = player;
 
-                io.in(data.roomName).emit('joinRoomSuccess', room);
+                socket.emit('joinRoomPlayerInfo', player);
 
+                io.in(data.roomName).emit('joinRoomSuccess', {
+                    player,
+                    room,
+                    playerList: room.players.map((player) => {
+                        return player.getPublicPlayerInfo();
+                    })
+                });
             }
         } else if (room && room.players.length >= 6) {
             socket.emit('joinRoomFailed', { message: 'Game room is already full.' })
@@ -63,43 +70,57 @@ io.on('connection', (socket) => {
             let owner = new Player(data.username, socket.id);
             rooms[data.roomName] = (new Room(data.roomName, [...cards], [owner], owner));
 
-            allPlayers[socketId] = owner;
+            allPlayers[socket.id] = owner;
 
-            socket.emit('joinRoomSuccess', rooms[data.roomName]);
+            socket.emit('joinRoomPlayerInfo', owner);
+
+            socket.emit('joinRoomSuccess', {
+                player: owner,
+                room: rooms[data.roomName],
+                playerList: rooms[data.roomName].players.map((player) => {
+                    return player.getPublicPlayerInfo();
+                })
+            });
+
             console.log("joined new room:", data.roomName);
         }
     })
 
     //data must have: player
-    socket.on('startGame', (data) => {
+    socket.on('startGame', () => {
         console.log('start game!');
-        let room = rooms[io.sockets.manager.roomClients[socket.id]];
+        let room = rooms[Object.keys(io.sockets.adapter.sids[socket.id]).filter(item => item != socket.id)];
         startGame(room);
 
-        for(let player of room.players) {
-            io.to(player.socketId).emit('updateCards', { cards: player.cards }); 
-        }
-
-        //socket.emit('startTurn', { roomName: room.name });
         let player = room.players[room.turn % room.players.length];
-        io.to(player.socketId).emit('yourTurn',
-            { roomName: roomName, actions: Game.getActions(player) });
+        io.to(player.socketId).emit('actions',
+            Game.getActions(player));
+
+        for (let player1 of room.players) {
+            io.to(player1.socketId).emit('dealCards', { cards: player1.cards });
+            if (player1 !== player) {
+                io.to(player1.socketId).emit('waiting', player.getPublicPlayerInfo());
+            }
+        }
     });
 
 
     //sends wait event to players to wait
     //data: roomName
+    /*
     socket.on('yourTurn', (data) => {
+        socket.emit('actions', Game.getActions)
         socket.to(data.roomName).emit('wait', {
             currentPlayerUsername:
                 allPlayers[socket.id].username
         });
-    })
+    })*/
 
 
-    socket.on('Income', (data) => {
-        let room = rooms[io.sockets.manager.roomClients[socket.id]];
-        Game.actionFunctions(Income(data.player));
+    socket.on('Income', (player) => {
+        console.log('income');
+        let room = rooms[Object.keys(io.sockets.adapter.sids[socket.id]).filter(item => item != socket.id)];
+        Game.actionFunctions.Income(player);
         room.turn++;
         socket.emit('startTurn', { roomName: room.name });
     })
@@ -115,14 +136,13 @@ io.on('connection', (socket) => {
         if (data.player.cards.length > 1) {
 
         } else {
-            io.to(data.player.)
         }
-    })
+    });
 
     //data = { action: 'Action', player: player}
     socket.on('action', (data) => {
 
-        let room = rooms[io.sockets.manager.roomClients[socket.id]];
+        let room = rooms[Object.keys(io.sockets.adapter.sids[socket.id]).filter(item => item != socket.id)];
         if (data.action === 'Income') {
             Game.actionFunctions(Income(data.player));
             room.turn++;

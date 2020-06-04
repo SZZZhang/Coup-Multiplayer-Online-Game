@@ -3,6 +3,14 @@ class Player {
         this.username = username;
         this.socketId = socketId
         this.coins = 2;
+        this.cards = [];
+    }
+
+    getPublicPlayerInfo() {
+        return {
+            username: this.username,
+            coins: this.coins
+        }
     }
 }
 
