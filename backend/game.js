@@ -7,6 +7,9 @@ let colors = {
     contessa: '#CB4335'
 }
 
+const actionFunctions = {
+    Income: (player) => { player.coins++ },
+}
 
 function getActions(player) {
     if(player.coins >= 10) {
@@ -28,3 +31,6 @@ function getActions(player) {
 function getCounterActions(player, Action) {
 
 }
+
+exports.actionFunctions = actionFunctions;
+exports.getActions = getActions;

@@ -37,7 +37,7 @@ function App() {
         const userName = document.getElementById('user-name').value;
         console.log(roomName + ' ' + userName);
         console.log('join room!');
-        socket.emit('joinRoom', { room: roomName, username: userName });
+        socket.emit('joinRoom', { roomName: roomName, username: userName });
         return false;
     }
 

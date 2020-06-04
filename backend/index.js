@@ -8,17 +8,21 @@ var server = app.listen(5000, () => {
 });
 var io = require('socket.io')(server);
 
-let Game = require('./game');
+const Game = require('./game');
 
 app.use(express.static('.'));
 
 let rooms = {};
+
+let allPlayers = {};
 
 let cards = ['Duke', 'Duke', 'Duke',
     'Assassin', 'Assassin', 'Assassin',
     'Ambassador', 'Ambassador', 'Ambassador',
     'Captain', 'Captain', 'Captain',
     'Contessa', 'Contessa', 'Contessa'];
+
+let events = [];
 
 // sending to all clients in 'game' room, including sender
 io.in('game').emit('big-announcement', 'the game will start soon');
@@ -29,22 +33,9 @@ io.on('connection', (socket) => {
         console.log("user disconnected " + socket.id);
     });
 
-    //creates game room, data should contain "room" key
-    socket.on('createRoom', (data) => {
-        if (!rooms.includes(data.room)) {
-            socket.join(data.room);
-            rooms.push(new Room(data.room, [...cards], [new Player(data.username)]));
-
-            console.log("joined new room:", data.room);
-        } else {
-            socket.emit('createRoomFailed',
-                { message: 'Please choose another name for the room' })
-        }
-    });
-
     //joins game room
     socket.on('joinRoom', (data) => {
-        let room = rooms[data.room];
+        let room = rooms[data.roomName];
         if (room && (room.players.length < 6)) {
             let userExists = false;
             for (const player of room.players) {
@@ -55,43 +46,105 @@ io.on('connection', (socket) => {
                 }
             }
 
-            if(!userExists){
-                socket.join(data.room)
+            if (!userExists) {
+                socket.join(data.roomName)
                 // sending to all clients in 'game' room, including sender
-                room.players.push(new Player(data.username));
-                io.in(data.room).emit('joinRoomSuccess', room);
+                let player = new Player(data.username, socket.id)
+                room.players.push(player);
+                allPlayers[socket.id] = player;
+
+                io.in(data.roomName).emit('joinRoomSuccess', room);
+
             }
         } else if (room && room.players.length >= 6) {
             socket.emit('joinRoomFailed', { message: 'Game room is already full.' })
         } else {
-            socket.join(data.room);
-            let owner = new Player(data.username);
-            rooms[data.room] = (new Room(data.room, [...cards], [owner], owner));
+            socket.join(data.roomName);
+            let owner = new Player(data.username, socket.id);
+            rooms[data.roomName] = (new Room(data.roomName, [...cards], [owner], owner));
 
-            socket.emit('joinRoomSuccess', rooms[data.room]);
-            console.log("joined new room:", data.room);
+            allPlayers[socketId] = owner;
+
+            socket.emit('joinRoomSuccess', rooms[data.roomName]);
+            console.log("joined new room:", data.roomName);
         }
     })
 
+    //data must have: player
     socket.on('startGame', (data) => {
         console.log('start game!');
-        let room = rooms[data.room];
+        let room = rooms[io.sockets.manager.roomClients[socket.id]];
+        startGame(room);
 
+        for(let player of room.players) {
+            io.to(player.socketId).emit('updateCards', { cards: player.cards }); 
+        }
+
+        //socket.emit('startTurn', { roomName: room.name });
+        let player = room.players[room.turn % room.players.length];
+        io.to(player.socketId).emit('yourTurn',
+            { roomName: roomName, actions: Game.getActions(player) });
     });
 
-    socket.on('getActions', (data) => {
-        socket.emit('actions', Game.getActions(data.player));
+
+    //sends wait event to players to wait
+    //data: roomName
+    socket.on('yourTurn', (data) => {
+        socket.to(data.roomName).emit('wait', {
+            currentPlayerUsername:
+                allPlayers[socket.id].username
+        });
     })
 
-    //counteractions to another player's action 
+
+    socket.on('Income', (data) => {
+        let room = rooms[io.sockets.manager.roomClients[socket.id]];
+        Game.actionFunctions(Income(data.player));
+        room.turn++;
+        socket.emit('startTurn', { roomName: room.name });
+    })
+
+    //data: player, coupPlayer 
+    socket.on('Coup', (data) => {
+        data.player.coins -= 7;
+        io.to(data.coupPlayer.socketId).emit('loseCard');
+    })
+
+    //data: player
+    socket.on('loseCard', (data) => {
+        if (data.player.cards.length > 1) {
+
+        } else {
+            io.to(data.player.)
+        }
+    })
+
+    //data = { action: 'Action', player: player}
     socket.on('action', (data) => {
-        socket.emit('actions', Game.getCounterActions(data.player, data.action))
+
+        let room = rooms[io.sockets.manager.roomClients[socket.id]];
+        if (data.action === 'Income') {
+            Game.actionFunctions(Income(data.player));
+            room.turn++;
+            socket.emit('startTurn', { roomName: room.name });
+        } else if (data.action === 'Coup') {
+            Game.actionFunctions(Coup(data.player));
+            room.turn++;
+            socket.emit('startTurn', { roomName: room.name });
+        }
+
+        socket.emit('counterActions', Game.getCounterActions(data.player, data.action))
     })
 
 });
 
-function startGame(room, player) {
+function startGame(room) {
+    shuffle(room.cards);
+    shuffle(room.players);
 
+    for (let player of room.players) {
+        player.cards = [room.cards.pop(), room.cards.pop()];
+    }
 }
 
 class Room {
@@ -100,9 +153,7 @@ class Room {
         this.cards = cards;
         this.players = players;
         this.owner = owner;
-    }
-    getPlayers() {
-        return this.players;
+        this.turn = 0;
     }
 }
 
