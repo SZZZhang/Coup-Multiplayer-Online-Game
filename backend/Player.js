@@ -11,6 +11,7 @@ class Player {
             username: this.username,
             coins: this.coins,
             socketId: this.socketId,
+            numberOfCards: this.cards.length,
         }
     }
 

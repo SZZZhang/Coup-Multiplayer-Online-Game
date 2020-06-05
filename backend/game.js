@@ -31,7 +31,20 @@ function getActions(player) {
 }
 
 function getCounterActions(player, Action) {
+    if(Action === 'Foreign Aid') {
+        return [
+            new Action('Block with Duke', colors.duke, 'Duke', 1)
+        ];
+    }
+}
 
+class Action {
+    constructor(name, color, character, show){
+        this.name = name;
+        this.color = color;
+        this.character = character;
+        this.show = show;  
+    }
 }
 
 exports.actionFunctions = actionFunctions;

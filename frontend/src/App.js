@@ -23,7 +23,7 @@ function App() {
     const [roomOwner, setRoomOwner] = useState(null);
     const [playerInfo, setPlayerInfo] = useState({});
     const [playerActions, setPlayerActions] = useState([]);
-    const [curTurnPlayer, setCurTurnPlayer] = useState(null);
+    const [curMessage, setCurMessage] = useState(null);
 
     console.log(playerInfo);
 
@@ -31,6 +31,7 @@ function App() {
         if (playerInfo.cards.length === 1) {
             sendCardToLose(0);
         } else {
+            setCurMessage('You have been couped! Choose a card to lose');
             setCurActionState(ACTION_STATE.CHOOSING_CARD_TO_LOSE_COUP);
         }
     }
@@ -81,7 +82,7 @@ function App() {
 
         socket.on('actions', (actions) => {
             setPlayerActions(actions);
-            setCurTurnPlayer('me');
+            setCurMessage('Chose an action');
         });
 
         socket.on('updatePlayersInfo', ({ playerList }) => {
@@ -92,9 +93,9 @@ function App() {
             setPlayerInfo(player);
         })
 
-        socket.on('waiting', (curPlayer) => {
+        socket.on('waiting', (message) => {
             setPlayerActions([]);
-            setCurTurnPlayer(curPlayer);
+            setCurMessage(message);
         });
 
         socket.on('chooseLoseCard', () => {
@@ -220,7 +221,8 @@ function App() {
                                     () => {
                                         clickAction('Coup', {
                                             playerCouped: {
-                                                socketId: player.socketId
+                                                socketId: player.socketId,
+                                                username: player.username
                                             }
                                         });
                                     }
@@ -257,8 +259,8 @@ function App() {
                 <p>{JSON.stringify(playerInfo.cards, null, 4)}</p>
                 <h1>Actions</h1>
                 <p>{JSON.stringify(playerActions, null, 4)}</p>
-                <h1>Current Player</h1>
-                <p>{JSON.stringify(curTurnPlayer, null, 4)}</p>
+                <h1>Message</h1>
+                <p>{JSON.stringify(curMessage, null, 4)}</p>
                 <h1>All Players</h1>
                 <p>{JSON.stringify(playerList, null, 4)}</p>
                 <span>

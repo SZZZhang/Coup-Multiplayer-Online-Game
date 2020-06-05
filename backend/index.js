@@ -113,14 +113,13 @@ io.on('connection', (socket) => {
 
 
     socket.on('Income', (data) => {
-        let room = rooms[Object.keys(io.sockets.adapter.sids[socket.id]).filter(item => item != socket.id)];
-        let currPlayer = room.players[room.turn % room.players.length];
-        currPlayer.Income();
-        console.log(currPlayer);
+       
+        let thisTurnPlayer = room.players[room.turn % room.players.length];
+        thisTurnPlayer.Income();
 
-        io.to(currPlayer.socketId).emit('updatePlayerInfo', currPlayer);
+        io.to(thisTurnPlayer.socketId).emit('updatePlayerInfo', thisTurnPlayer);
+        
         room.turn++;
-
         let nextPlayer = room.players[room.turn % room.players.length];
         sendTurnEvents(nextPlayer, room);
 
@@ -133,8 +132,13 @@ io.on('connection', (socket) => {
 
         currPlayer.coins -= 7;
         io.to(data.playerCouped.socketId).emit('chooseLoseCard');
-        io.to(currPlayer.socketId).emit('waiting', data.playerCouped);
+        io.to(currPlayer.socketId).emit('waiting', 'Waiting for ' +  
+            data.playerCouped.username + ' to chose a card to lose');
     })
+
+    socket.on('Foreign Aid', (data) =>  {
+        socket.emit('waiting', 'Waiting for other players')
+    });
 
     //data: player,cardToLoseIndex
     socket.on('lostCard', (data) => {
@@ -144,7 +148,7 @@ io.on('connection', (socket) => {
         if (currPlayer.cards.length > 1) {
             currPlayer.cards.splice(data.cardToLoseIndex, 1);
         } else {
-            deletePlayer(currPlayer);
+            deletePlayer(currPlayer, room);
         }
         console.log(currPlayer.cards);
         io.to(currPlayer.socketId).emit('updatePlayerInfo', currPlayer);
@@ -175,7 +179,7 @@ class Room {
     }
 }
 
-function deletePlayer(player) {
+function deletePlayer(player, room) {
     delete allPlayers[player.socketId];
 
     for (let i = 0; i < room.players.length; i++) {
@@ -198,10 +202,8 @@ function sendTurnEvents(currentPlayer, room) {
 
     for (let player of room.players) {
         if (player !== currentPlayer) {
-            io.to(player.socketId).emit('waiting', {
-                username: currentPlayer.username,
-                coins: currentPlayer.coins
-            });
+            io.to(player.socketId).emit('waiting', 
+                'Waiting for ' +  currentPlayer.username +  ' to make a move');
         }
     }
 }
