@@ -29,8 +29,8 @@ io.in('game').emit('big-announcement', 'the game will start soon');
 
 io.on('connection', (socket) => {
 
-   let room = null;
-   let currPlayer = null;
+    let room = null;
+    let currPlayer = null;
 
     console.log("connected to server " + socket.id);
     socket.on('disconnect', () => {
@@ -54,7 +54,7 @@ io.on('connection', (socket) => {
                 socket.join(data.roomName)
                 // sending to all clients in 'game' room, including sender
                 let player = new Player(data.username, socket.id);
-                currPlayer = player; 
+                currPlayer = player;
 
                 room.players.push(player);
                 allPlayers[socket.id] = player;
@@ -106,7 +106,7 @@ io.on('connection', (socket) => {
         let player = room.players[room.turn % room.players.length];
 
         for (let player1 of room.players) {
-            io.to(player1.socketId).emit('dealCards', player1 );
+            io.to(player1.socketId).emit('dealCards', player1);
         }
         sendTurnEvents(player, room);
     });
@@ -127,23 +127,26 @@ io.on('connection', (socket) => {
     })
 
     //data: player, playerCouped
-    socket.on('Coup', (data) => {   
+    socket.on('Coup', (data) => {
 
         console.log('Coup ' + JSON.stringify(data, null, 4));
 
         currPlayer.coins -= 7;
-        io.to(data.playerCouped.socketId).emit('chooseLoseCard');  
-        io.to(currPlayer.socketId).emit('waiting', data.playerCouped);      
+        io.to(data.playerCouped.socketId).emit('chooseLoseCard');
+        io.to(currPlayer.socketId).emit('waiting', data.playerCouped);
     })
 
     //data: player,cardToLoseIndex
     socket.on('lostCard', (data) => {
-    
-        if (data.player.cards.length > 1) {
-            data.player.cards.splice(cardToLoseIndex, 1); 
+
+        console.log(data)
+
+        if (currPlayer.cards.length > 1) {
+            currPlayer.cards.splice(data.cardToLoseIndex, 1);
         } else {
-            deletePlayer(data.player);
+            deletePlayer(currPlayer);
         }
+        console.log(currPlayer.cards);
         io.to(currPlayer.socketId).emit('updatePlayerInfo', currPlayer);
         room.turn++;
 
@@ -175,8 +178,8 @@ class Room {
 function deletePlayer(player) {
     delete allPlayers[player.socketId];
 
-    for(let i = 0; i < room.players.length; i++) {
-        if(room.players[i] === player){
+    for (let i = 0; i < room.players.length; i++) {
+        if (room.players[i] === player) {
             room.players.splice(i, 1);
             break;
         }

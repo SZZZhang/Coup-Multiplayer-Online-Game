@@ -28,7 +28,6 @@ function App() {
     console.log(playerInfo);
 
     const onChooseLoseCard = () => {
-        console.log(playerInfo);
         if (playerInfo.cards.length === 1) {
             sendCardToLose(0);
         } else {
@@ -50,11 +49,13 @@ function App() {
 
     const clickAction = (actionName, payload) => {
         console.log('sending ' + actionName + ' with payload ' + payload);
+        setCurActionState(ACTION_STATE.NONE);
         socket.emit(actionName, payload);
     };
 
     const sendCardToLose = (cardToLoseIndex) => {
         socket.emit('lostCard', { player: playerInfo, cardToLoseIndex });
+        setCurActionState(ACTION_STATE.NONE);
     }
 
     useEffect(() => {
@@ -88,7 +89,6 @@ function App() {
         })
 
         socket.on('updatePlayerInfo', (player) => {
-            console.log(playerInfo);
             setPlayerInfo(player);
         })
 
@@ -98,14 +98,27 @@ function App() {
         });
 
         socket.on('chooseLoseCard', () => {
-            console.log(playerInfo)
             onChooseLoseCard();
         })
 
         return () => {
+            socket.off('joinRoomSuccess');
+            socket.off('joinRoomPlayerInfo');
+            socket.off('joinRoomFailed');
+            socket.off('dealCards');
+            socket.off('actions');
+            socket.off('updatePlayersInfo')
+            socket.off('updatePlayerInfo')
+            socket.off('waiting');
+            socket.off('chooseLoseCard')
+        }
+    }, [playerInfo]);
+
+    useEffect(() => {
+        return () => {
             socket.disconnect();
         };
-    }, []);
+    }, [])
 
     let AppContent;
     if (curGameState === GAME_STATE.JOIN_ROOM) {
