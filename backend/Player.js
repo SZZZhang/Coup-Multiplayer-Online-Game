@@ -9,7 +9,8 @@ class Player {
     getPublicPlayerInfo() {
         return {
             username: this.username,
-            coins: this.coins
+            coins: this.coins,
+            socketId: this.socketId,
         }
     }
 

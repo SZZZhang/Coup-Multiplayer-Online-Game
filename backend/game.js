@@ -13,7 +13,7 @@ const actionFunctions = {
 
 function getActions(player) {
     if(player.coins >= 10) {
-        return [{name: 'Coup', character: 0, show: 1}];
+        return [{name: 'Coup', color: '#EAECEE', character: 0, show: 1}];
     }
     let actions = [
         { name: 'Income', color: '#EAECEE', character: 0, show: 1},

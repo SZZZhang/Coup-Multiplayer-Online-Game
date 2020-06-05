@@ -28,6 +28,10 @@ let events = [];
 io.in('game').emit('big-announcement', 'the game will start soon');
 
 io.on('connection', (socket) => {
+
+   let room = null;
+   let currPlayer = null;
+
     console.log("connected to server " + socket.id);
     socket.on('disconnect', () => {
         console.log("user disconnected " + socket.id);
@@ -35,7 +39,7 @@ io.on('connection', (socket) => {
 
     //joins game room
     socket.on('joinRoom', (data) => {
-        let room = rooms[data.roomName];
+        room = rooms[data.roomName];
         if (room && (room.players.length < 6)) {
             let userExists = false;
             for (const player of room.players) {
@@ -49,7 +53,9 @@ io.on('connection', (socket) => {
             if (!userExists) {
                 socket.join(data.roomName)
                 // sending to all clients in 'game' room, including sender
-                let player = new Player(data.username, socket.id)
+                let player = new Player(data.username, socket.id);
+                currPlayer = player; 
+
                 room.players.push(player);
                 allPlayers[socket.id] = player;
 
@@ -62,6 +68,8 @@ io.on('connection', (socket) => {
                         return player.getPublicPlayerInfo();
                     })
                 });
+
+
             }
         } else if (room && room.players.length >= 6) {
             socket.emit('joinRoomFailed', { message: 'Game room is already full.' })
@@ -82,6 +90,9 @@ io.on('connection', (socket) => {
                 })
             });
 
+            //
+            room = rooms[data.roomName];
+            currPlayer = owner;
             console.log("joined new room:", data.roomName);
         }
     })
@@ -89,13 +100,13 @@ io.on('connection', (socket) => {
     //data must have: player
     socket.on('startGame', () => {
         console.log('start game!');
-        let room = rooms[Object.keys(io.sockets.adapter.sids[socket.id]).filter(item => item != socket.id)];
+        //let room = rooms[Object.keys(io.sockets.adapter.sids[socket.id]).filter(item => item != socket.id)];
         startGame(room);
 
         let player = room.players[room.turn % room.players.length];
 
         for (let player1 of room.players) {
-            io.to(player1.socketId).emit('dealCards', { cards: player1.cards });
+            io.to(player1.socketId).emit('dealCards', player1 );
         }
         sendTurnEvents(player, room);
     });
@@ -105,29 +116,39 @@ io.on('connection', (socket) => {
         let room = rooms[Object.keys(io.sockets.adapter.sids[socket.id]).filter(item => item != socket.id)];
         let currPlayer = room.players[room.turn % room.players.length];
         currPlayer.Income();
-        console.log(currPlayer);ß
+        console.log(currPlayer);
 
         io.to(currPlayer.socketId).emit('updatePlayerInfo', currPlayer);
         room.turn++;
-
 
         let nextPlayer = room.players[room.turn % room.players.length];
         sendTurnEvents(nextPlayer, room);
 
     })
 
-    //data: player, coupPlayer 
-    socket.on('Coup', (data) => {
-        data.player.coins -= 7;
-        io.to(data.coupPlayer.socketId).emit('loseCard');
+    //data: player, playerCouped
+    socket.on('Coup', (data) => {   
+
+        console.log('Coup ' + JSON.stringify(data, null, 4));
+
+        currPlayer.coins -= 7;
+        io.to(data.playerCouped.socketId).emit('chooseLoseCard');  
+        io.to(currPlayer.socketId).emit('waiting', data.playerCouped);      
     })
 
-    //data: player
-    socket.on('loseCard', (data) => {
+    //data: player,cardToLoseIndex
+    socket.on('lostCard', (data) => {
+    
         if (data.player.cards.length > 1) {
-
+            data.player.cards.splice(cardToLoseIndex, 1); 
         } else {
+            deletePlayer(data.player);
         }
+        io.to(currPlayer.socketId).emit('updatePlayerInfo', currPlayer);
+        room.turn++;
+
+        let nextPlayer = room.players[room.turn % room.players.length];
+        sendTurnEvents(nextPlayer, room);
     });
 
 });
@@ -148,6 +169,17 @@ class Room {
         this.players = players;
         this.owner = owner;
         this.turn = 0;
+    }
+}
+
+function deletePlayer(player) {
+    delete allPlayers[player.socketId];
+
+    for(let i = 0; i < room.players.length; i++) {
+        if(room.players[i] === player){
+            room.players.splice(i, 1);
+            break;
+        }
     }
 }
 
