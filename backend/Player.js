@@ -12,6 +12,10 @@ class Player {
             coins: this.coins
         }
     }
+
+    Income() {
+        this.coins++;
+    }
 }
 
 module.exports = Player;

@@ -47,7 +47,18 @@ function App() {
             setCurTurnPlayer('me');
         });
 
+        socket.on('updatePlayersInfo', ({ playerList }) => {
+            console.log(playerList);
+            setPlayerList(playerList);
+        })
+
+        socket.on('updatePlayerInfo', (player) => {
+            console.log(player);
+            setPlayerInfo(player);
+        })
+
         socket.on('waiting', (curPlayer) => {
+            setPlayerActions([]);
             setCurTurnPlayer(curPlayer);
         });
 

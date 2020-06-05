@@ -93,36 +93,27 @@ io.on('connection', (socket) => {
         startGame(room);
 
         let player = room.players[room.turn % room.players.length];
-        io.to(player.socketId).emit('actions',
-            Game.getActions(player));
 
         for (let player1 of room.players) {
             io.to(player1.socketId).emit('dealCards', { cards: player1.cards });
-            if (player1 !== player) {
-                io.to(player1.socketId).emit('waiting', player.getPublicPlayerInfo());
-            }
         }
+        sendTurnEvents(player, room);
     });
 
 
-    //sends wait event to players to wait
-    //data: roomName
-    /*
-    socket.on('yourTurn', (data) => {
-        socket.emit('actions', Game.getActions)
-        socket.to(data.roomName).emit('wait', {
-            currentPlayerUsername:
-                allPlayers[socket.id].username
-        });
-    })*/
-
-
-    socket.on('Income', (player) => {
-        console.log('income');
+    socket.on('Income', (data) => {
         let room = rooms[Object.keys(io.sockets.adapter.sids[socket.id]).filter(item => item != socket.id)];
-        Game.actionFunctions.Income(player);
+        let currPlayer = room.players[room.turn % room.players.length];
+        currPlayer.Income();
+        console.log(currPlayer);ß
+
+        io.to(currPlayer.socketId).emit('updatePlayerInfo', currPlayer);
         room.turn++;
-        socket.emit('startTurn', { roomName: room.name });
+
+
+        let nextPlayer = room.players[room.turn % room.players.length];
+        sendTurnEvents(nextPlayer, room);
+
     })
 
     //data: player, coupPlayer 
@@ -138,23 +129,6 @@ io.on('connection', (socket) => {
         } else {
         }
     });
-
-    //data = { action: 'Action', player: player}
-    socket.on('action', (data) => {
-
-        let room = rooms[Object.keys(io.sockets.adapter.sids[socket.id]).filter(item => item != socket.id)];
-        if (data.action === 'Income') {
-            Game.actionFunctions(Income(data.player));
-            room.turn++;
-            socket.emit('startTurn', { roomName: room.name });
-        } else if (data.action === 'Coup') {
-            Game.actionFunctions(Coup(data.player));
-            room.turn++;
-            socket.emit('startTurn', { roomName: room.name });
-        }
-
-        socket.emit('counterActions', Game.getCounterActions(data.player, data.action))
-    })
 
 });
 
@@ -174,6 +148,26 @@ class Room {
         this.players = players;
         this.owner = owner;
         this.turn = 0;
+    }
+}
+
+function sendTurnEvents(currentPlayer, room) {
+    io.to(currentPlayer.socketId).emit('actions',
+        Game.getActions(currentPlayer));
+
+    io.in(room.name).emit('updatePlayersInfo', {
+        playerList: room.players.map((player) => {
+            return player.getPublicPlayerInfo();
+        })
+    })
+
+    for (let player of room.players) {
+        if (player !== currentPlayer) {
+            io.to(player.socketId).emit('waiting', {
+                username: currentPlayer.username,
+                coins: currentPlayer.coins
+            });
+        }
     }
 }
 
