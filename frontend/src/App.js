@@ -14,7 +14,9 @@ function App() {
     const ACTION_STATE = {
         NONE: 'none',
         CHOOSING_WHO_TO_COUP: 'choosing_who_to_coup',
-        CHOOSING_CARD_TO_LOSE_COUP: 'choosing_card_to_lose_coup'
+        CHOOSING_CARD_TO_LOSE: 'choosing_card_to_lose_coup',
+        COUNTERACTION: 'counteraction',
+        SHOWDOWN: 'showdown'
     }
 
     const [curGameState, setCurGameState] = useState(GAME_STATE.JOIN_ROOM);
@@ -24,15 +26,14 @@ function App() {
     const [playerInfo, setPlayerInfo] = useState({});
     const [playerActions, setPlayerActions] = useState([]);
     const [curMessage, setCurMessage] = useState(null);
+    const [actionPackage, setActionPackage] = useState(null);
 
-    console.log(playerInfo);
-
-    const onChooseLoseCard = () => {
+    const onChooseLoseCard = (message) => {
         if (playerInfo.cards.length === 1) {
             sendCardToLose(0);
         } else {
-            setCurMessage('You have been couped! Choose a card to lose');
-            setCurActionState(ACTION_STATE.CHOOSING_CARD_TO_LOSE_COUP);
+            setActionPackage({ message });
+            setCurActionState(ACTION_STATE.CHOOSING_CARD_TO_LOSE);
         }
     }
 
@@ -98,8 +99,20 @@ function App() {
             setCurMessage(message);
         });
 
-        socket.on('chooseLoseCard', () => {
-            onChooseLoseCard();
+        socket.on('chooseLoseCard', (message) => {
+            onChooseLoseCard(message);
+        });
+
+        socket.on('counterActions', (data) => {
+            console.log('counteraction')
+            console.log(data);
+            setActionPackage(data);
+            setCurActionState(ACTION_STATE.COUNTERACTION);
+        })
+
+        socket.on('showdown', (data) => {
+            setActionPackage(data);
+            setCurActionState(ACTION_STATE.SHOWDOWN);
         })
 
         return () => {
@@ -170,7 +183,7 @@ function App() {
                             clickAction(action.name);
                         }
                         break;
-                    case 'Foregin Aid':
+                    case 'Foreign Aid':
                         actionFunc = () => {
                             clickAction(action.name);
                         }
@@ -232,15 +245,70 @@ function App() {
                     })}
                 </div>
             );
-        } else if (curActionState === ACTION_STATE.CHOOSING_CARD_TO_LOSE_COUP) {
+        } else if (curActionState === ACTION_STATE.CHOOSING_CARD_TO_LOSE) {
             actionControls = (
                 <div>
-                    <h3>You have been couped! Choose a card to lose.</h3>
+                    <h3>{actionPackage.message}</h3>
                     {playerInfo.cards.map((card, index) => {
                         return (
                             <Button key={index} style={{ marginRight: '10px' }} onClick={
                                 () => {
                                     sendCardToLose(index);
+                                }
+                            }>{card}</Button>
+                        )
+                    })}
+                </div>
+            )
+        } else if (curActionState === ACTION_STATE.COUNTERACTION) {
+            actionControls = (
+                <div>
+                    <h3>{actionPackage.message}</h3>
+                    {actionPackage.actions.map((action, index) => {
+                        if (action.show) {
+                            return (
+                                <Button key={index} style={{ marginRight: '10px', backgroundColor: action.color }} onClick={
+                                    () => {
+                                        if (action.name === 'Challenge') {
+                                            clickAction('Challenge', {
+                                                challengedPlayer: {
+                                                    username: actionPackage.player.username,
+                                                    socketId: actionPackage.player.socketId
+                                                },
+                                                character: action.character
+                                            })
+                                        } else if (action.name === 'Block with Duke') {
+                                            clickAction('Block with Duke', actionPackage.player);
+                                        } else if (action.name === 'Pass') {
+                                            clickAction('Pass');
+                                        } else {
+                                            console.log('Unknown action clicked.')
+                                        }
+                                    }
+                                }>{action.name}</Button>
+                            )
+                        } else {
+                            return null;
+                        }
+                    })}
+                </div>
+            )
+        } else if (curActionState === ACTION_STATE.SHOWDOWN) {
+            actionControls = (
+                <div>
+                    <h3>You have been challenged. You must show a {actionPackage.card} or choose a card to lose.</h3>
+                    {playerInfo.cards.map((card, index) => {
+                        return (
+                            <Button key={index} style={{ marginRight: '10px' }} onClick={
+                                () => {
+                                    clickAction('showCard', {
+                                        revealedCard: card,
+                                        revealedCardIndex: index,
+                                        claimedCard: actionPackage.card,
+                                        challenger: {
+                                            socketId: actionPackage.challenger.socketId
+                                        }
+                                    });
                                 }
                             }>{card}</Button>
                         )

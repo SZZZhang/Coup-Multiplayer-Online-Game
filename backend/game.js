@@ -32,40 +32,40 @@ function getActions(player) {
 
 // Note: for Action 'Challenge', the character attribute is the card that they claim to have
 function getCounterActions(action) {
-    if (action.name === 'Foreign Aid') {
+    if (action === 'Foreign Aid') {
         return [
             new Action('Block with Duke', colors.duke, 'Duke', 1),
             new Action('Pass', colors.none, 0, 1),
         ];
-    } else if (action.name === 'Block with Duke') {
+    } else if (action === 'Block with Duke') {
         return [
             new Action('Challenge', colors.none, 'Duke', 1),
             new Action('Pass', colors.none, 0, 1),
         ]
-    } else if (action.name === 'Tax') {
+    } else if (action === 'Tax') {
         return [ new Action('Challenge', colors.none, 'Duke', 1),
                 new Action('Pass', colors.none, 0, 1)]
     }
-    else if (action.name === 'Assassinate This Player') {
+    else if (action === 'Assassinate This Player') {
         return [new Action('Challenge', colors.none, 'Assassin', 1),
         new Action('Block', colors.contessa, 'Contessa', 1),
         new Action('Pass', colors.none, 0, 1),
         ]
-    } else if (action.name === 'Assassinate') {
+    } else if (action === 'Assassinate') {
         return [new Action('Challenge', colors.none, 'Assassin', 1),
         new Action('Pass', colors.none, 0, 1),];
-    } else if (action.name === 'Exchange') {
+    } else if (action === 'Exchange') {
         return [new Action('Challenge', colors.none, 'Ambassador', 1),
         new Action('Pass', colors.none, 0, 1),];
-    } else if (action.name === 'Steal From This Player') {
+    } else if (action === 'Steal From This Player') {
         return [new Action('Block with Ambassador', colors.ambassador, 'Ambassador', 1),
         new Action('Block with Captain', colors.captain, 'Captain', 1),
         new Action('Challenge', colors.none, 'Captain', 1),
         new Action('Pass', colors.none, 0, 1),]
-    } else if (action.name === 'Block with Captain') {
+    } else if (action === 'Block with Captain') {
         return [new Action('Challenge', colors.none, 'Captain', 1),
         new Action('Pass', colors.none, 0, 1),]
-    } else if (action.name === 'Block with Ambassador') {
+    } else if (action === 'Block with Ambassador') {
         return [
             new Action('Pass', colors.none, 0, 1),
             new Action('Challenge', color.none, 'Ambassador', 1),
