@@ -185,7 +185,7 @@ function App() {
                             clickAction(action.name);
                         }
                         break;
-                    case 'Assasinate':
+                    case 'Assassinate':
                         actionFunc = () => {
                             clickAction(action.name);
                         }

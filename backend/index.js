@@ -113,12 +113,12 @@ io.on('connection', (socket) => {
 
 
     socket.on('Income', (data) => {
-       
+
         let thisTurnPlayer = room.players[room.turn % room.players.length];
         thisTurnPlayer.Income();
 
         io.to(thisTurnPlayer.socketId).emit('updatePlayerInfo', thisTurnPlayer);
-        
+
         room.turn++;
         let nextPlayer = room.players[room.turn % room.players.length];
         sendTurnEvents(nextPlayer, room);
@@ -132,30 +132,80 @@ io.on('connection', (socket) => {
 
         currPlayer.coins -= 7;
         io.to(data.playerCouped.socketId).emit('chooseLoseCard');
-        io.to(currPlayer.socketId).emit('waiting', 'Waiting for ' +  
+        io.to(currPlayer.socketId).emit('waiting', 'Waiting for ' +
             data.playerCouped.username + ' to chose a card to lose');
     })
 
-    socket.on('Foreign Aid', (data) =>  {
-        socket.emit('waiting', 'Waiting for other players')
+    socket.on('Foreign Aid', (data) => {
+        socket.emit('waiting', 'Waiting for other players');
+        socket.to(room.name).emit('counterActions', {
+            message: currPlayer.username + ' used Foreign Aid',
+            actions: Game.getCounterActions('Foreign Aid')
+        });
     });
+
+    socket.on('Block with Duke', (playerThatUsedForeignAid) => {
+        io.to(playerThatUsedForeignAid.socketId).emit('counterActions', 
+        {message: currPlayer.username + ' blocked your Foreign Aid', 
+            actions: Game.getCounterActions('Block with Duke')
+        } );
+    })
+
+    //data: challengedPlayer(username, socketId), character  
+    socket.on('Challenge', (data) => {
+        socket.emit('waiting', 'Waiting for other player');
+        io.to(data.challengedPlayer.socketId).emit('showdown', {card: data.character});
+        for(let player of room.players) {
+            if(player.username !== data.challengedPlayer.username 
+                && player.username !== currPlayer.username) {
+                    io.to(player.socketId).emit('waiting', currPlayer.username + 
+                    ' challenged ' + challengedPlayer.username);
+                }
+        }
+    })
+
+    //data: revealedCard, revealedCardIndex, claimedCard, challengerSocketId
+    socket.on('showCard', (data) => {
+        if(data.revealedCard === data.claimedCard) {
+            io.to(data.challenger.socketId).emit('chooseLoseCard');
+        } else {
+            loseCard(currPlayer, room, data.revealedCardIndex);
+            sendTurnEvents(currPlayer, room); 
+        }
+    })
+
+    socket.on('Pass', () => {
+        let thisTurnPlayerUsername = room.players[room.turn % room.players.length].username;
+        currentPlayer.pass = true;
+
+        let allPlayersPass = true;
+        for (let player of room.players) {
+            if (!player.pass && player.username !== thisTurnPlayerUsername) {
+                allPlayersPass = false;
+                break;
+            }
+        }
+
+        if (allPlayersPass) {
+            room.turn++; 
+            let nextPlayer = room.players[room.turn % room.players.length];
+            for(let player of room.players) player.pass = false;
+            sendTurnEvents(nextPlayer, room);
+        } else {
+            socket.emit('waiting', 'Waiting for other players');
+        }
+    })
+
+    socket.on('Tax', ()=> {
+        socket.emit('waiting', 'Waiting for other players');
+        socket.to(room.name).emit('counterActions', {
+            message: currPlayer.username + " used Tax", actions: getCounterActions('Tax')})
+    })
 
     //data: player,cardToLoseIndex
     socket.on('lostCard', (data) => {
-
-        console.log(data)
-
-        if (currPlayer.cards.length > 1) {
-            currPlayer.cards.splice(data.cardToLoseIndex, 1);
-        } else {
-            deletePlayer(currPlayer, room);
-        }
-        console.log(currPlayer.cards);
-        io.to(currPlayer.socketId).emit('updatePlayerInfo', currPlayer);
-        room.turn++;
-
-        let nextPlayer = room.players[room.turn % room.players.length];
-        sendTurnEvents(nextPlayer, room);
+        loseCard(currPlayer, room, data.cardToLoseIndex);
+        sendTurnEvents(currPlayer, room);
     });
 
 });
@@ -178,6 +228,13 @@ class Room {
         this.turn = 0;
     }
 }
+function loseCard(player, room, cardToLoseIndex) {
+    if (player.cards.length > 1) {
+        player.cards.splice(cardToLoseIndex, 1);
+    } else {
+        deletePlayer(player, room);
+    }
+}
 
 function deletePlayer(player, room) {
     delete allPlayers[player.socketId];
@@ -190,9 +247,14 @@ function deletePlayer(player, room) {
     }
 }
 
-function sendTurnEvents(currentPlayer, room) {
-    io.to(currentPlayer.socketId).emit('actions',
-        Game.getActions(currentPlayer));
+function sendTurnEvents(currPlayer, room) {
+    io.to(currPlayer.socketId).emit('updatePlayerInfo', currPlayer);
+    room.turn++;
+
+    let nextPlayer = room.players[room.turn % room.players.length];
+
+    io.to(nextPlayer.socketId).emit('actions',
+        Game.getActions(nextPlayer));
 
     io.in(room.name).emit('updatePlayersInfo', {
         playerList: room.players.map((player) => {
@@ -201,9 +263,9 @@ function sendTurnEvents(currentPlayer, room) {
     })
 
     for (let player of room.players) {
-        if (player !== currentPlayer) {
-            io.to(player.socketId).emit('waiting', 
-                'Waiting for ' +  currentPlayer.username +  ' to make a move');
+        if (player !== nextPlayer) {
+            io.to(player.socketId).emit('waiting',
+                'Waiting for ' + nextPlayer.username + ' to make a move');
         }
     }
 }
