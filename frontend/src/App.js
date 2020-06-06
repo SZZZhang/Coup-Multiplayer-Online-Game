@@ -148,16 +148,31 @@ function App() {
             );
         } else {
             InGameContent = (
-                <Container className='mt-5'>
-                    {MessageContent}
+                <Container className='mt-5' style={{
+                    justifyContent: 'space-evenly'
+                }}>
+                    <div style={{
+                        marginBottom: 20
+                    }}>
+                        {MessageContent}
+                    </div>
                     <div style={{
                         display: 'flex',
-                        flexDirection: 'row'
+                        flexDirection: 'row',
+                        justifyContent: 'space-evenly',
+                        marginBottom: 20
                     }}>
                         {MyInfoContent}
                         {AllPlayerContent}
                     </div>
-                    {ActionControlsContent}
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        justifyContent: 'space-evenly',
+                        marginBottom: 20
+                    }}>
+                        {ActionControlsContent}
+                    </div>
                 </Container >
             );
         }
