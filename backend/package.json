@@ -1,7 +1,7 @@
 {
-    "name": "coup-card-game",
+    "name": "coup-card-game-backend",
     "version": "0.0.1",
-    "description": "A web version of the indie card game 'Coup' ",
+    "description": "A web version of the indie card game 'Coup' - Backend",
     "main": "index.js",
     "scripts": {
         "start": "nodemon index.js"

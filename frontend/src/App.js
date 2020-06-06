@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Button, Form, Card, ListGroup, Badge } from 'react-bootstrap';
+import { Container, Button } from 'react-bootstrap';
 import io from 'socket.io-client';
+import MyInfo from './components/MyInfo';
+import Message from './components/Message';
+import AllPlayers from './components/AllPlayers';
+import ActionControls from './components/ActionControls';
+import JoinGameScreen from './components/JoinGameScreen';
+import LobbyScreen from './components/LobbyScreen';
+import constants from './constants';
+
+
 const socket = io('http://localhost:5000');
 
 function App() {
@@ -11,339 +20,153 @@ function App() {
         IN_GAME: 'in_game'
     };
 
-    const ACTION_STATE = {
-        NONE: 'none',
-        CHOOSING_WHO_TO_COUP: 'choosing_who_to_coup',
-        CHOOSING_CARD_TO_LOSE: 'choosing_card_to_lose_coup',
-        COUNTERACTION: 'counteraction',
-        SHOWDOWN: 'showdown'
-    }
+    const ACTION_STATE = constants.ACTION_STATE;
 
     const [curGameState, setCurGameState] = useState(GAME_STATE.JOIN_ROOM);
-    const [curActionState, setCurActionState] = useState(ACTION_STATE.NONE);
     const [playerList, setPlayerList] = useState([]);
     const [roomOwner, setRoomOwner] = useState(null);
     const [playerInfo, setPlayerInfo] = useState({});
-    const [playerActions, setPlayerActions] = useState([]);
     const [curMessage, setCurMessage] = useState(null);
+    const [devMode, setDevMode] = useState(true);
     const [actionPackage, setActionPackage] = useState(null);
-
-    const onChooseLoseCard = (message) => {
-        if (playerInfo.cards.length === 1) {
-            sendCardToLose(0);
-        } else {
-            setActionPackage({ message });
-            setCurActionState(ACTION_STATE.CHOOSING_CARD_TO_LOSE);
-        }
-    }
-
-    const onCreateJoinRoom = (e) => {
-        e.preventDefault();
-        const roomName = document.getElementById('room-name').value;
-        const userName = document.getElementById('user-name').value;
-        socket.emit('joinRoom', { roomName: roomName, username: userName });
-        return false;
-    };
-
-    const startGame = () => {
-        socket.emit('startGame');
-    };
-
-    const clickAction = (actionName, payload) => {
-        console.log('sending ' + actionName + ' with payload ' + payload);
-        setCurActionState(ACTION_STATE.NONE);
-        socket.emit(actionName, payload);
-    };
-
-    const sendCardToLose = (cardToLoseIndex) => {
-        socket.emit('lostCard', { player: playerInfo, cardToLoseIndex });
-        setCurActionState(ACTION_STATE.NONE);
-    }
+    const [actionState, setActionState] = useState(ACTION_STATE.NONE);
 
     useEffect(() => {
-        socket.on('joinRoomSuccess', (data) => {
+        const onJoinRoomSuccess = (data) => {
             const room = data.room;
             setPlayerList(room.players);
             setRoomOwner(room.owner.username);
             setCurGameState(GAME_STATE.LOBBY);
-        });
+        };
 
-        socket.on('joinRoomPlayerInfo', (data) => {
+        const onJoinRoomPlayerInfo = (data) => {
             setPlayerInfo(data);
-        });
+        };
 
-        socket.on('joinRoomFailed', ({ message }) => {
+        const onJoinRoomFailed = ({ message }) => {
             alert(message);
-        });
+        };
 
-        socket.on('dealCards', (data) => {
+        const onDealCards = (data) => {
             setCurGameState(GAME_STATE.IN_GAME);
             setPlayerInfo(data);
-        });
+        };
 
-        socket.on('actions', (actions) => {
-            setPlayerActions(actions);
-            setCurMessage('Chose an action');
-        });
-
-        socket.on('updatePlayersInfo', ({ playerList }) => {
-            setPlayerList(playerList);
-        })
-
-        socket.on('updatePlayerInfo', (player) => {
-            setPlayerInfo(player);
-        })
-
-        socket.on('waiting', (message) => {
-            setPlayerActions([]);
+        const onWaiting = (message) => {
             setCurMessage(message);
-        });
+        };
 
-        socket.on('chooseLoseCard', (message) => {
-            onChooseLoseCard(message);
-        });
+        const onActions = () => {
+            setCurMessage('Chose an action');
+        };
 
-        socket.on('counterActions', (data) => {
-            console.log('counteraction')
-            console.log(data);
-            setActionPackage(data);
-            setCurActionState(ACTION_STATE.COUNTERACTION);
-        })
+        const onUpdatePlayersInfo = ({ playerList }) => {
+            setPlayerList(playerList);
+        };
 
-        socket.on('showdown', (data) => {
-            setActionPackage(data);
-            setCurActionState(ACTION_STATE.SHOWDOWN);
-        })
+        const onUpdatePlayerInfo = (player) => {
+            setPlayerInfo(player);
+        };
+
+        socket.on('joinRoomSuccess', onJoinRoomSuccess);
+        socket.on('joinRoomPlayerInfo', onJoinRoomPlayerInfo);
+        socket.on('joinRoomFailed', onJoinRoomFailed);
+        socket.on('dealCards', onDealCards);
+        socket.on('waiting', onWaiting);
+        socket.on('actions', onActions);
+        socket.on('updatePlayersInfo', onUpdatePlayersInfo);
+        socket.on('updatePlayerInfo', onUpdatePlayerInfo);
 
         return () => {
-            socket.off('joinRoomSuccess');
-            socket.off('joinRoomPlayerInfo');
-            socket.off('joinRoomFailed');
-            socket.off('dealCards');
-            socket.off('actions');
-            socket.off('updatePlayersInfo')
-            socket.off('updatePlayerInfo')
-            socket.off('waiting');
-            socket.off('chooseLoseCard')
-        }
-    }, [playerInfo]);
+            socket.off('joinRoomSuccess', onJoinRoomSuccess);
+            socket.off('joinRoomPlayerInfo', onJoinRoomPlayerInfo);
+            socket.off('joinRoomFailed', onJoinRoomFailed);
+            socket.off('dealCards', onDealCards);
+            socket.off('waiting', onWaiting);
+            socket.off('actions', onActions);
+            socket.off('updatePlayersInfo', onUpdatePlayersInfo);
+            socket.off('updatePlayerInfo', onUpdatePlayerInfo);
+        };
+    }, []);
 
     useEffect(() => {
         return () => {
             socket.disconnect();
         };
-    }, [])
+    }, []);
 
     let AppContent;
     if (curGameState === GAME_STATE.JOIN_ROOM) {
-        const JoinRoomContent = (
-            <Container className='mt-5'>
-                <h1 className='mb-4'>Coup, the game.</h1>
-                <Form onSubmit={(e) => { onCreateJoinRoom(e); return false; }}>
-                    <Form.Group controlId="room-name">
-                        <Form.Label>Create or Join a Game Room</Form.Label>
-                        <Form.Control required type="text" placeholder="Room name" />
-                    </Form.Group>
-                    <Form.Group controlId="user-name">
-                        <Form.Label>Username</Form.Label>
-                        <Form.Control required type="text" placeholder="Username" />
-                    </Form.Group>
-                    <Button variant="primary" className='mr-3' type="submit">Create/Join Room</Button>
-                </Form>
-            </Container>
-        );
-        AppContent = JoinRoomContent;
+        AppContent = <JoinGameScreen
+            socket={socket}
+            devMode={devMode}
+        />;
     } else if (curGameState === GAME_STATE.LOBBY) {
-        const LobbyContent = (
-            <Container className='mt-5'>
-                <Card style={{ width: '18rem' }}>
-                    <ListGroup variant="flush">
-                        {playerList.map((player, index) => {
-                            return (
-                                <ListGroup.Item key={index}>{player.username}{player.username === roomOwner ? <span> <Badge variant="primary">Owner</Badge></span> : null}</ListGroup.Item>
-                            );
-                        })}
-                    </ListGroup>
-                </Card>
-                {JSON.stringify(playerList, null, 4)}
-                <div>
-                    {playerInfo.username === roomOwner ? <Button onClick={startGame}>Start</Button> : null}
-                </div>
-            </Container>
-
-        );
-        AppContent = LobbyContent;
+        AppContent = <LobbyScreen
+            playerList={playerList}
+            roomOwner={roomOwner}
+            playerInfo={playerInfo}
+            socket={socket}
+            devMode={devMode}
+        />;
     } else if (curGameState === GAME_STATE.IN_GAME) {
-        const ActionButtons = playerActions.map((action, index) => {
-            if (action.show) {
-                let actionFunc;
-                switch (action.name) {
-                    case 'Income':
-                        actionFunc = () => {
-                            clickAction(action.name);
-                        }
-                        break;
-                    case 'Foreign Aid':
-                        actionFunc = () => {
-                            clickAction(action.name);
-                        }
-                        break;
-                    case 'Coup':
-                        actionFunc = () => {
-                            setCurActionState(ACTION_STATE.CHOOSING_WHO_TO_COUP);
-                        }
-                        break;
-                    case 'Tax':
-                        actionFunc = () => {
-                            clickAction(action.name);
-                        }
-                        break;
-                    case 'Assassinate':
-                        actionFunc = () => {
-                            clickAction(action.name);
-                        }
-                        break;
-                    case 'Exchange':
-                        actionFunc = () => {
-                            clickAction(action.name);
-                        }
-                        break;
-                    case 'Steal':
-                        actionFunc = () => {
-                            clickAction(action.name);
-                        }
-                        break;
-                }
-                return (
-                    <Button key={index} style={{ backgroundColor: action.color, borderColor: 'black', color: 'black', marginRight: '10px' }} onClick={actionFunc}>{action.name}</Button>
-                );
-            } else {
-                return null;
-            }
-        });
+        const MyInfoContent = <MyInfo
+            playerInfo={playerInfo}
+            devMode={devMode}
+        />;
 
-        let actionControls;
-        if (curActionState === ACTION_STATE.CHOOSING_WHO_TO_COUP) {
-            actionControls = (
-                <div>
-                    <h3>Choose someone to Coup</h3>
-                    {playerList.map((player, index) => {
-                        if (player.username !== playerInfo.username) {
-                            return (
-                                <Button key={index} style={{ marginRight: '10px' }} onClick={
-                                    () => {
-                                        clickAction('Coup', {
-                                            playerCouped: {
-                                                socketId: player.socketId,
-                                                username: player.username
-                                            }
-                                        });
-                                    }
-                                }>{player.username}</Button>
-                            )
-                        }
-                    })}
-                </div>
+        const MessageContent = <Message
+            message={curMessage}
+            devMode={devMode}
+        />;
+
+        const AllPlayerContent = <AllPlayers
+            playerList={playerList}
+            devMode={devMode}
+        />;
+
+        const ActionControlsContent = <ActionControls
+            playerInfo={playerInfo}
+            playerList={playerList}
+            socket={socket}
+            devMode={devMode}
+            actionPackage={actionPackage}
+            setActionPackage={setActionPackage}
+            actionState={actionState}
+            setActionState={setActionState}
+        />;
+
+        let InGameContent;
+        if (devMode) {
+            InGameContent = (
+                <Container className='mt-5'>
+                    {MyInfoContent}
+                    {MessageContent}
+                    {AllPlayerContent}
+                    {ActionControlsContent}
+                </Container >
             );
-        } else if (curActionState === ACTION_STATE.CHOOSING_CARD_TO_LOSE) {
-            actionControls = (
-                <div>
-                    <h3>{actionPackage.message}</h3>
-                    {playerInfo.cards.map((card, index) => {
-                        return (
-                            <Button key={index} style={{ marginRight: '10px' }} onClick={
-                                () => {
-                                    sendCardToLose(index);
-                                }
-                            }>{card}</Button>
-                        )
-                    })}
-                </div>
-            )
-        } else if (curActionState === ACTION_STATE.COUNTERACTION) {
-            actionControls = (
-                <div>
-                    <h3>{actionPackage.message}</h3>
-                    {actionPackage.actions.map((action, index) => {
-                        if (action.show) {
-                            return (
-                                <Button key={index} style={{ marginRight: '10px', backgroundColor: action.color }} onClick={
-                                    () => {
-                                        if (action.name === 'Challenge') {
-                                            clickAction('Challenge', {
-                                                challengedPlayer: {
-                                                    username: actionPackage.player.username,
-                                                    socketId: actionPackage.player.socketId
-                                                },
-                                                character: action.character
-                                            })
-                                        } else if (action.name === 'Block with Duke') {
-                                            clickAction('Block with Duke', actionPackage.player);
-                                        } else if (action.name === 'Pass') {
-                                            clickAction('Pass');
-                                        } else {
-                                            console.log('Unknown action clicked.')
-                                        }
-                                    }
-                                }>{action.name}</Button>
-                            )
-                        } else {
-                            return null;
-                        }
-                    })}
-                </div>
-            )
-        } else if (curActionState === ACTION_STATE.SHOWDOWN) {
-            actionControls = (
-                <div>
-                    <h3>You have been challenged. You must show a {actionPackage.card} or choose a card to lose.</h3>
-                    {playerInfo.cards.map((card, index) => {
-                        return (
-                            <Button key={index} style={{ marginRight: '10px' }} onClick={
-                                () => {
-                                    clickAction('showCard', {
-                                        revealedCard: card,
-                                        revealedCardIndex: index,
-                                        claimedCard: actionPackage.card,
-                                        challenger: {
-                                            socketId: actionPackage.challenger.socketId
-                                        }
-                                    });
-                                }
-                            }>{card}</Button>
-                        )
-                    })}
-                </div>
-            )
         } else {
-            actionControls = null;
+            InGameContent = (
+                <Container className='mt-5'>
+                    {MessageContent}
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'row'
+                    }}>
+                        {MyInfoContent}
+                        {AllPlayerContent}
+                    </div>
+                    {ActionControlsContent}
+                </Container >
+            );
         }
-
-        const InGameContent = (
-            <Container className='mt-5'>
-                <h1>My Info</h1>
-                <p>{JSON.stringify(playerInfo, null, 4)}</p>
-                <h1>Cards</h1>
-                <p>{JSON.stringify(playerInfo.cards, null, 4)}</p>
-                <h1>Actions</h1>
-                <p>{JSON.stringify(playerActions, null, 4)}</p>
-                <h1>Message</h1>
-                <p>{JSON.stringify(curMessage, null, 4)}</p>
-                <h1>All Players</h1>
-                <p>{JSON.stringify(playerList, null, 4)}</p>
-                <span>
-                    {ActionButtons}
-                </span>
-                <div>
-                    {actionControls}
-                </div>
-            </Container>
-        );
         AppContent = InGameContent;
     }
 
     return (
         <div className="App">
+            <Button style={{ marginTop: 5, marginLeft: 5 }} onClick={() => { setDevMode(!devMode); }}>Dev Mode is {devMode ? 'ON' : 'OFF'}</Button>
             {AppContent}
         </div>
     );
