@@ -15,6 +15,16 @@ class Player {
         }
     }
 
+    Action(action, io, room) {
+        if (action === 'Foreign Aid') {
+            this.coins += 2;
+        } else if (action === 'Tax') {
+            this.coins += 3;
+        } else if (action === 'Exchange') {
+            io.to(this.socketId).emit('exchangeCards'); 
+        } 
+    }
+
     Income() {
         this.coins++;
     }
