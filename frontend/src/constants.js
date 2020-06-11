@@ -6,7 +6,9 @@ constants.ACTION_STATE = {
     CHOOSING_CARD_TO_LOSE: 'choosing_card_to_lose_coup',
     COUNTERACTION: 'counteraction',
     SHOWDOWN: 'showdown',
-    CHOOSING_MAIN_ACTION: 'choosing_main_action'
+    CHOOSING_MAIN_ACTION: 'choosing_main_action',
+    PICKING_CARDS_TO_EXCHANGE: 'picking_cards_to_exchange',
+    CHOOSING_WHO_TO_STEAL_FROM: 'choosing_who_to_steal_from'
 };
 
 export default constants;

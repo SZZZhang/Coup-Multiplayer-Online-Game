@@ -65,6 +65,8 @@ function App() {
         };
 
         const onUpdatePlayerInfo = (player) => {
+            console.log('update player info')
+            console.log(player)
             setPlayerInfo(player);
         };
 
@@ -116,7 +118,7 @@ function App() {
         />;
 
         const MessageContent = <Message
-            message={curMessage}
+            message={(actionPackage && actionPackage.message) || curMessage}
             devMode={devMode}
         />;
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import constants from '../constants';
 import { Button } from 'react-bootstrap';
 
@@ -6,7 +6,9 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
 
     const ACTION_STATE = constants.ACTION_STATE;
 
-    console.log(actionState);
+    const [newCards, setNewCards] = useState([])
+
+    console.log(actionState)
 
     const sendCardToLose = (cardToLoseIndex) => {
         socket.emit('lostCard', { player: playerInfo, cardToLoseIndex });
@@ -15,6 +17,7 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
 
     useEffect(() => {
         const onWaiting = () => {
+            console.log('waiting')
             setActionState(ACTION_STATE.NONE);
         };
 
@@ -30,36 +33,50 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
 
         const onCounterActions = (data) => {
             console.log('counteraction');
-            console.log(data);
+            console.log(data)
             setActionPackage(data);
             setActionState(ACTION_STATE.COUNTERACTION);
         };
 
         const onShowdown = (data) => {
             console.log('showdown');
-            setActionPackage(data);
+            console.log(data)
+            setActionPackage(data)
             setActionState(ACTION_STATE.SHOWDOWN);
         };
 
         const onActions = (actions) => {
             console.log('on actions');
-            console.log(actions);
+            console.log(actions)
             setActionPackage(actions);
             setActionState(ACTION_STATE.CHOOSING_MAIN_ACTION);
         };
+
+        const onExchangeCards = (newCards) => {
+            console.log('exchangeCards');
+            console.log({
+                cards: newCards
+            })
+            setActionPackage({
+                cards: newCards
+            });
+            setActionState(ACTION_STATE.PICKING_CARDS_TO_EXCHANGE);
+        }
 
         socket.on('waiting', onWaiting);
         socket.on('chooseLoseCard', onChooseLoseCard);
         socket.on('counterActions', onCounterActions);
         socket.on('showdown', onShowdown);
         socket.on('actions', onActions);
+        socket.on('exchangeCards', onExchangeCards)
 
         return () => {
             socket.off('waiting', onWaiting);
             socket.off('chooseLoseCard', onChooseLoseCard);
             socket.off('counterActions', onCounterActions);
             socket.off('showdown', onShowdown);
-            socket.on('actions', onActions);
+            socket.off('actions', onActions);
+            socket.off('exchangeCards', onExchangeCards)
         };
     }, [playerInfo]);
 
@@ -68,6 +85,20 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
         setActionState(ACTION_STATE.NONE);
         socket.emit(actionName, payload);
     };
+
+    const onClickChooseNewCard = (cardName) => {
+        const newCardArr = [...newCards, cardName];
+        if (newCardArr.length >= 2) {
+            console.log('sending new cards selection')
+            console.log(newCardArr)
+            socket.emit('Exchange Cards', {
+                newCards: newCardArr
+            })
+            setNewCards([])
+        } else {
+            setNewCards([cardName])
+        }
+    }
 
     let actionControls;
     if (actionState === ACTION_STATE.CHOOSING_WHO_TO_COUP) {
@@ -81,6 +112,28 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
                                 () => {
                                     clickAction('Coup', {
                                         playerCouped: {
+                                            socketId: player.socketId,
+                                            username: player.username
+                                        }
+                                    });
+                                }
+                            }>{player.username}</Button>
+                        );
+                    }
+                })}
+            </div>
+        );
+    } else if (actionState === ACTION_STATE.CHOOSING_WHO_TO_STEAL_FROM) {
+        actionControls = (
+            <div>
+                <h3>Choose someone to steal from</h3>
+                {playerList.map((player, index) => {
+                    if (player.username !== playerInfo.username) {
+                        return (
+                            <Button key={index} style={{ marginRight: '10px' }} onClick={
+                                () => {
+                                    clickAction('Steal', {
+                                        targetPlayer: {
                                             socketId: player.socketId,
                                             username: player.username
                                         }
@@ -124,8 +177,8 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
                                             },
                                             character: action.character
                                         });
-                                    } else if (action.name === 'Block with Duke') {
-                                        clickAction('Block with Duke', actionPackage.player);
+                                    } else if (['Block with Duke', 'Block with Ambassador', 'Block With Captain'].includes(action.name)) {
+                                        clickAction(action.name);
                                     } else if (action.name === 'Pass') {
                                         clickAction('Pass');
                                     } else {
@@ -167,41 +220,41 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
             if (action.show) {
                 let actionFunc;
                 switch (action.name) {
-                case 'Income':
-                    actionFunc = () => {
-                        clickAction(action.name);
-                    };
-                    break;
-                case 'Foreign Aid':
-                    actionFunc = () => {
-                        clickAction(action.name);
-                    };
-                    break;
-                case 'Coup':
-                    actionFunc = () => {
-                        setActionState(ACTION_STATE.CHOOSING_WHO_TO_COUP);
-                    };
-                    break;
-                case 'Tax':
-                    actionFunc = () => {
-                        clickAction(action.name);
-                    };
-                    break;
-                case 'Assassinate':
-                    actionFunc = () => {
-                        clickAction(action.name);
-                    };
-                    break;
-                case 'Exchange':
-                    actionFunc = () => {
-                        clickAction(action.name);
-                    };
-                    break;
-                case 'Steal':
-                    actionFunc = () => {
-                        clickAction(action.name);
-                    };
-                    break;
+                    case 'Income':
+                        actionFunc = () => {
+                            clickAction(action.name);
+                        };
+                        break;
+                    case 'Foreign Aid':
+                        actionFunc = () => {
+                            clickAction(action.name);
+                        };
+                        break;
+                    case 'Coup':
+                        actionFunc = () => {
+                            setActionState(ACTION_STATE.CHOOSING_WHO_TO_COUP);
+                        };
+                        break;
+                    case 'Tax':
+                        actionFunc = () => {
+                            clickAction(action.name);
+                        };
+                        break;
+                    case 'Assassinate':
+                        actionFunc = () => {
+                            clickAction(action.name);
+                        };
+                        break;
+                    case 'Exchange':
+                        actionFunc = () => {
+                            clickAction(action.name);
+                        };
+                        break;
+                    case 'Steal':
+                        actionFunc = () => {
+                            setActionState(ACTION_STATE.CHOOSING_WHO_TO_STEAL_FROM)
+                        };
+                        break;
                 }
                 return (
                     <Button key={index} style={{ backgroundColor: action.color, borderColor: 'black', color: 'black', marginRight: '10px' }} onClick={actionFunc}>{action.name}</Button>
@@ -210,6 +263,22 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
                 return null;
             }
         });
+    } else if (actionState === ACTION_STATE.PICKING_CARDS_TO_EXCHANGE) {
+        const cardsToPickFrom = [...playerInfo.cards, ...actionPackage.cards]
+        actionControls = (
+            <div>
+                <h3>Click on the two cards you wish to keep</h3>
+                {cardsToPickFrom.map((card, index) => {
+                    return (
+                        <Button key={index} style={{ marginRight: '10px' }} onClick={
+                            () => {
+                                onClickChooseNewCard(card)
+                            }
+                        }>{card}</Button>
+                    );
+                })}
+            </div>
+        );
     } else {
         actionControls = null;
     }

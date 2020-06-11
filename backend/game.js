@@ -68,7 +68,7 @@ function getCounterActions(action) {
     } else if (action === 'Block with Ambassador') {
         return [
             new Action('Pass', colors.none, 0, 1),
-            new Action('Challenge', color.none, 'Ambassador', 1),
+            new Action('Challenge', colors.none, 'Ambassador', 1),
         ]
     }
 }
@@ -82,6 +82,6 @@ class Action {
     }
 }
 
-exports.actionFunctions = actionFunctions;
-exports.getActions = getActions;
-exports.getCounterActions = getCounterActions;
+module.exports.actionFunctions = actionFunctions;
+module.exports.getActions = getActions;
+module.exports.getCounterActions = getCounterActions;
