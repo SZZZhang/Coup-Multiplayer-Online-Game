@@ -1,7 +1,9 @@
 
 var express = require('express');
 var app = express();
+
 const Player = require('./Player');
+const Room = require('./Room');
 
 var server = app.listen(5000, () => {
     console.log("Init server")
@@ -14,15 +16,11 @@ app.use(express.static('.'));
 
 let rooms = {};
 
-let allPlayers = {};
-
 let cards = ['Duke', 'Duke', 'Duke',
     'Assassin', 'Assassin', 'Assassin',
     'Ambassador', 'Ambassador', 'Ambassador',
     'Captain', 'Captain', 'Captain',
     'Contessa', 'Contessa', 'Contessa'];
-
-let events = [];
 
 // sending to all clients in 'game' room, including sender
 io.in('game').emit('big-announcement', 'the game will start soon');
@@ -56,7 +54,6 @@ io.on('connection', (socket) => {
                 currPlayer = player;
 
                 room.players.push(player);
-                allPlayers[socket.id] = player;
 
                 socket.emit('joinRoomPlayerInfo', player);
 
@@ -76,8 +73,6 @@ io.on('connection', (socket) => {
             socket.join(data.roomName);
             let owner = new Player(data.username, socket.id);
             rooms[data.roomName] = (new Room(data.roomName, [...cards], [owner], owner));
-
-            allPlayers[socket.id] = owner;
 
             socket.emit('joinRoomPlayerInfo', owner);
 
@@ -116,6 +111,7 @@ io.on('connection', (socket) => {
         let thisTurnPlayer = room.players[room.turn % room.players.length];
         thisTurnPlayer.Income();
 
+        room.events.push(currPlayer.username + ' used Income');        
         sendTurnEvents(currPlayer, room);
     })
 
@@ -125,6 +121,8 @@ io.on('connection', (socket) => {
         console.log('Coup ' + JSON.stringify(data, null, 4));
 
         currPlayer.coins -= 7;
+
+        room.events.push(currPlayer.username + ' Couped ' + playerCouped.username);
         io.to(data.playerCouped.socketId).emit('chooseLoseCard', 'You have been couped! Choose a card to lose.');
         io.to(currPlayer.socketId).emit('waiting', 'Waiting for ' +
             data.playerCouped.username + ' to chose a card to lose');
@@ -132,6 +130,7 @@ io.on('connection', (socket) => {
 
     socket.on('Foreign Aid', (data) => {
         room.currAction = 'Foreign Aid';
+        room.events.push(currPlayer.username + ' wants to use Foreign Aid');
         socket.emit('waiting', 'Waiting for other players');
         socket.to(room.name).emit('counterActions', {
             message: currPlayer.username + ' used Foreign Aid',
@@ -325,33 +324,6 @@ function startGame(room) {
     }
 }
 
-class Room {
-    constructor(name, cards, players, owner) {
-        this.name = name;
-        this.cards = cards;
-        this.players = players;
-        this.owner = owner;
-        this.turn = 0;
-
-        this.passPlayers = 0;
-        this.currPlayer = null;
-        this.currAction = null;
-        this.targetPlayer = null;
-        this.challenge = false;
-        this.block = false;
-        this.targetPlayerName = null;
-    }
-
-    reset() {
-        this.passPlayers = 0;
-        this.currPlayer = null;
-        this.currAction = null;
-        this.targetPlayer = null;
-        this.challenge = false;
-        this.block = false; 
-        this.targetPlayerName = null;
-    }
-}
 function loseCard(player, room, cardToLoseIndex) {
     if (player.cards.length > 1) {
         player.cards.splice(cardToLoseIndex, 1);
@@ -369,7 +341,6 @@ function randomCard(player, room, cardIndex) {
 }
 
 function deletePlayer(player, room) {
-    delete allPlayers[player.socketId];
 
     for (let i = 0; i < room.players.length; i++) {
         if (room.players[i] === player) {
@@ -377,6 +348,7 @@ function deletePlayer(player, room) {
             break;
         }
     }
+    io.to(player.socketId).emit('lostGame', ':<');
 }
 
 //maybe delete currPlayer param 
