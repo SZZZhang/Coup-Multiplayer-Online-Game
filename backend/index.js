@@ -6,7 +6,7 @@ const Player = require('./Player');
 const Room = require('./Room');
 
 var server = app.listen(5000, () => {
-    console.log("Init server")
+    console.log('Init server');
 });
 var io = require('socket.io')(server);
 
@@ -36,9 +36,9 @@ io.on('connection', (socket) => {
     let room = null;
     let currPlayer = null;
 
-    console.log("connected to server " + socket.id);
+    console.log('connected to server ' + socket.id);
     socket.on('disconnect', () => {
-        console.log("user disconnected " + socket.id);
+        console.log('user disconnected ' + socket.id);
     });
 
     //joins game room
@@ -55,7 +55,7 @@ io.on('connection', (socket) => {
             }
 
             if (!userExists) {
-                socket.join(data.roomName)
+                socket.join(data.roomName);
                 // sending to all clients in 'game' room, including sender
                 let player = new Player(data.username, socket.id);
                 currPlayer = player;
@@ -75,7 +75,7 @@ io.on('connection', (socket) => {
 
             }
         } else if (room && room.players.length >= 6) {
-            socket.emit('joinRoomFailed', { message: 'Game room is already full.' })
+            socket.emit('joinRoomFailed', { message: 'Game room is already full.' });
         } else {
             socket.join(data.roomName);
             let owner = new Player(data.username, socket.id);
@@ -94,9 +94,9 @@ io.on('connection', (socket) => {
             //
             room = rooms[data.roomName];
             currPlayer = owner;
-            console.log("joined new room:", data.roomName);
+            console.log('joined new room:', data.roomName);
         }
-    })
+    });
 
     //data must have: player
     socket.on('startGame', () => {
@@ -113,14 +113,15 @@ io.on('connection', (socket) => {
     });
 
 
-    socket.on('Income', (data) => {
+    socket.on('Income', () => {
 
         let thisTurnPlayer = room.players[room.turn % room.players.length];
         thisTurnPlayer.Income();
 
-        room.events.push(new Event(currPlayer.username + ' used Income', 1));        
+        room.events.push(new Event(currPlayer.username + ' used Income', 1));
+        io.in(room.name).emit('updateEvents', room.events);
         sendTurnEvents(currPlayer, room);
-    })
+    });
 
     //data: player, playerCouped
     socket.on('Coup', (data) => {
@@ -129,15 +130,18 @@ io.on('connection', (socket) => {
 
         currPlayer.coins -= 7;
 
-        room.events.push(new Event(currPlayer.username + ' Couped ' + playerCouped.username, 1));
+        room.events.push(new Event(currPlayer.username + ' Couped ' + data.playerCouped.username, 1));
+        io.in(room.name).emit('updateEvents', room.events);
         io.to(data.playerCouped.socketId).emit('chooseLoseCard', 'You have been couped! Choose a card to lose.');
         io.to(currPlayer.socketId).emit('waiting', 'Waiting for ' +
             data.playerCouped.username + ' to chose a card to lose');
-    })
+    });
 
-    socket.on('Foreign Aid', (data) => {
+    socket.on('Foreign Aid', () => {
         room.currAction = 'Foreign Aid';
         room.events.push(new Event(currPlayer.username + ' wants to use Foreign Aid', 1));
+        io.in(room.name).emit('updateEvents', room.events);
+
         socket.emit('waiting', 'Waiting for other players');
         socket.to(room.name).emit('counterActions', {
             message: currPlayer.username + ' used Foreign Aid',
@@ -149,6 +153,8 @@ io.on('connection', (socket) => {
     socket.on('Block with Duke', () => {
         room.block = true;
         room.events.push(new Event(currPlayer.username + ' blocked the foreign aid with Duke', 0));
+        io.in(room.name).emit('updateEvents', room.events);
+
         socket.emit('waiting', 'Waiting for other players');
         socket.to(room.name).emit('counterActions',
             {
@@ -157,116 +163,131 @@ io.on('connection', (socket) => {
                 actions: Game.getCounterActions('Block with Duke')
             });
         room.passPlayers = 0;
-    })
+    });
 
     socket.on('Tax', () => {
         room.currAction = 'Tax';
         room.events.push(new Event(currPlayer.username + ' used Tax', 1));
+        io.in(room.name).emit('updateEvents', room.events);
+
         socket.emit('waiting', 'Waiting for other players');
         socket.to(room.name).emit('counterActions', {
-            message: currPlayer.username + " used Tax", actions: Game.getCounterActions('Tax'),
+            message: currPlayer.username + ' used Tax', actions: Game.getCounterActions('Tax'),
             player: currPlayer.getPublicPlayerInfo(),
-        })
-    })
+        });
+    });
 
 
-    socket.on('Exchange', (data) => {
+    socket.on('Exchange', () => {
         room.currAction = 'Exchange';
         room.events.push(new Event(currPlayer.username + ' used Exchange', 1));
+        io.in(room.name).emit('updateEvents', room.events);
+
         socket.emit('waiting', 'Waiting for other players');
         socket.to(room.name).emit('counterActions', {
-            message: currPlayer.username + " wants to exchange cards with the deck",
+            message: currPlayer.username + ' wants to exchange cards with the deck',
             actions: Game.getCounterActions('Exchange'),
             player: currPlayer.getPublicPlayerInfo(),
-        })
-    })
+        });
+    });
 
     //data: [newCards]
     socket.on('Exchange Cards', (data) => {
         addToDeck(room, currPlayer.cards);
         removeFromDeck(room, data.newCards);
         currPlayer.cards = data.newCards;
-        sendTurnEvents(currPlayer, room)
-    })
+        sendTurnEvents(currPlayer, room);
+    });
 
     //data: targetPlayer(username, socketId)
     socket.on('Assassinate', (data) => {
+        currPlayer.coins -= 3; 
         room.targetPlayerName = data.targetPlayer.username;
         room.currAction = 'Assassinate';
         room.events.push(new Event(currPlayer.username + ' wants to assassinate ' + data.targetPlayer.username, 1));
+        io.in(room.name).emit('updateEvents', room.events);
 
         socket.emit('waiting', 'Waiting for other players');
-        io.to(data.targetPlayer.socketId).emit('counterActions',{
-                message: currPlayer.username + " wants you assassinate you",
-                actions: Game.getCounterActions('Assassinate This Player'),
-                player: currPlayer.getPublicPlayerInfo(),
-            });
-        emitToAllButThesePlayers([data.targetPlayer.username, currPlayer.username],
-            room, io, 'counterActions', {
-            message: currPlayer.username + " wants to assassinate " + data.targetPlayer.username,
-            actions: Game.getCounterActions('Assassinate'),
+        io.to(data.targetPlayer.socketId).emit('counterActions', {
+            message: currPlayer.username + ' wants you assassinate you',
+            actions: Game.getCounterActions('Assassinate This Player'),
             player: currPlayer.getPublicPlayerInfo(),
         });
-    })
+        emitToAllButThesePlayers([data.targetPlayer.username, currPlayer.username],
+            room, io, 'counterActions', {
+                message: currPlayer.username + ' wants to assassinate ' + data.targetPlayer.username,
+                actions: Game.getCounterActions('Assassinate'),
+                player: currPlayer.getPublicPlayerInfo(),
+            });
+    });
 
     socket.on('Block with Contessa', () => {
         room.block = true;
         room.events.push(new Event(currPlayer.username + ' blocked the assassination with Contessa', 0));
+        io.in(room.name).emit('updateEvents', room.events);
+
         socket.emit('waiting', 'Waiting for other players');
         socket.to(room.name).emit('counterActions', {
-            message: currPlayer.username + " blocked the assassination with Contessa",
+            message: currPlayer.username + ' blocked the assassination with Contessa',
             actions: Game.getCounterActions('Block with Contessa'),
             player: currPlayer.getPublicPlayerInfo(),
-        })
+        });
         room.passPlayers = 0;
-    })
+    });
 
     //data: targetPlayer(username, socketId)
     socket.on('Steal', (data) => {
         room.targetPlayerName = data.targetPlayer.username;
         room.currAction = 'Steal';
         room.events.push(new Event(currPlayer.username + ' wants to steal from ' + data.targetPlayer.username, 1));
+        io.in(room.name).emit('updateEvents', room.events);
 
         socket.emit('waiting', 'Waiting for other players');
         io.to(data.targetPlayer.socketId).emit('counterActions', {
             message: currPlayer.username + ' wants to steal from you',
             actions: Game.getCounterActions('Steal From This Player'),
-            player: currPlayer.getPublicPlayerInfo() 
-        })
+            player: currPlayer.getPublicPlayerInfo()
+        });
         emitToAllButThesePlayers([data.targetPlayer.username, currPlayer.username],
             room, io, 'counterActions', {
-            message: currPlayer.username + " wants to steal from " + data.targetPlayer.username,
-            actions: Game.getCounterActions('Steal'),
-            player: currPlayer.getPublicPlayerInfo(),
-        });
-    })
+                message: currPlayer.username + ' wants to steal from ' + data.targetPlayer.username,
+                actions: Game.getCounterActions('Steal'),
+                player: currPlayer.getPublicPlayerInfo(),
+            });
+    });
 
     socket.on('Block with Captain', () => {
         room.block = true;
         room.events.push(new Event(currPlayer.username + ' blocked steal with Captain', 0));
+        io.in(room.name).emit('updateEvents', room.events);
+
         socket.emit('waiting', 'Waiting for other players');
         socket.to(room.name).emit('counterActions', {
-            message: currPlayer.username + " blocked the steal with Captain",
+            message: currPlayer.username + ' blocked the steal with Captain',
             actions: Game.getCounterActions('Block with Captain'),
             player: currPlayer.getPublicPlayerInfo(),
-        })
-    })
+        });
+    });
 
     socket.on('Block with Ambassador', () => {
         room.block = true;
         room.events.push(new Event(currPlayer.username + ' blocked steal with Ambassador', 0));
+        io.in(room.name).emit('updateEvents', room.events);
+
         socket.emit('waiting', 'Waiting for other players');
         socket.to(room.name).emit('counterActions', {
-            message: currPlayer.username + " blocked the steal with Captain",
+            message: currPlayer.username + ' blocked the steal with Captain',
             actions: Game.getCounterActions('Block with Ambassador'),
             player: currPlayer.getPublicPlayerInfo(),
-        })
-    })
+        });
+    });
 
     //data: challengedPlayer(username, socketId), character
     socket.on('Challenge', (data) => {
         room.challenge = true;
         room.events.push(new Event(currPlayer.username + ' challenges the last action', 0));
+        io.in(room.name).emit('updateEvents', room.events);
+
         socket.emit('waiting', 'Waiting for other player');
         io.to(data.challengedPlayer.socketId).emit('showdown',
             { challenger: currPlayer.getPublicPlayerInfo(), card: data.character });
@@ -278,51 +299,59 @@ io.on('connection', (socket) => {
             }
         }
         room.passPlayers = 0;
-    })
+    });
 
     //data: revealedCard, revealedCardIndex, claimedCard, challenger(socketId)
     socket.on('showCard', (data) => {
 
         if (data.revealedCard === data.claimedCard) {
             randomCard(currPlayer, room, data.revealedCardIndex);
-            if(!room.block) room.currPlayer.Action(room.currAction, io, room);
-               
+            if (!room.block) room.currPlayer.Action(room.currAction, io, room);
+
             if (room.currAction === 'Exchange') {
                 emitToAllButThesePlayers([currPlayer.username], room, io, 'waiting',
-                    'Waiting for ' + currPlayer.username + ' to exchange cards')
+                    'Waiting for ' + currPlayer.username + ' to exchange cards');
             }
 
             room.events.push(new Event('Challenge failed', 0));
+            io.in(room.name).emit('updateEvents', room.events);
+
             io.to(data.challenger.socketId).emit('chooseLoseCard', 'Your challenge failed. Choose a card to lose.');
-        } 
-         else {
+        }
+        else {
             loseCard(currPlayer, room, data.revealedCardIndex);
-            if(room.block) room.currPlayer.Action(room.currAction, io, room);
+            if (room.block) room.currPlayer.Action(room.currAction, io, room);
             room.events.push(new Event('Challenge successful', 0));
+            io.in(room.name).emit('updateEvents', room.events);
             sendTurnEvents(currPlayer, room);
         }
-    })
+    });
 
     // originalAction(string)
     socket.on('Pass', () => {
         room.passPlayers++;
         if (room.passPlayers >= room.players.length - 1) {
             if (!room.challenge) {
-                if(!room.block)
+                if (!room.block)
                     room.currPlayer.Action(room.currAction, io, room);
-                    console.log('Testing steal ' + room.targetPlayerName);
+            
                 if (room.currAction === 'Exchange') {
                     emitToAllButThesePlayers([room.currPlayer.username], room, io, 'waiting',
-                        'Waiting for ' + room.currPlayer.name + ' to exchange cards');
+                        'Waiting for ' + room.currPlayer.username + ' to exchange cards');
+                }
+                if (room.currAction === 'Assassinate') {
+                    emitToAllButThesePlayers([room.targetPlayerName], room, io, 'waiting',
+                        'Waiting for ' + room.targetPlayerName + ' to choose a card to lose');
                 }
             }
-            if(room.currAction !== 'Exchange') {
+        
+            if ((room.currAction !== 'Exchange' && room.currAction !== 'Assassinate') || room.block) {
                 sendTurnEvents(currPlayer, room);
             }
         } else {
             socket.emit('waiting', 'Waiting for other players');
         }
-    })
+    });
 
 
     //data: player,cardToLoseIndex
@@ -373,7 +402,7 @@ function deletePlayer(player, room) {
 function sendTurnEvents(currPlayer, room) {
     room.reset();
 
-    for(let player of room.players) {
+    for (let player of room.players) {
         io.to(player.socketId).emit('updatePlayerInfo', player);
     }
     room.turn++;
@@ -389,7 +418,7 @@ function sendTurnEvents(currPlayer, room) {
         playerList: room.players.map((player) => {
             return player.getPublicPlayerInfo();
         })
-    })
+    });
 
     for (let player of room.players) {
         if (player !== nextPlayer) {

@@ -22,6 +22,8 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
         };
 
         const onChooseLoseCard = (message) => {
+            console.log('choose lose card');
+            console.log(message)
             if (playerInfo.cards.length === 1) {
                 sendCardToLose(0);
                 console.log('You lose! You had to lose one card and you only had one card left.');
@@ -145,6 +147,28 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
                 })}
             </div>
         );
+    } else if (actionState === ACTION_STATE.CHOOSING_WHO_TO_ASSASSINATE) {
+        actionControls = (
+            <div>
+                <h3>Choose someone to assassinate</h3>
+                {playerList.map((player, index) => {
+                    if (player.username !== playerInfo.username) {
+                        return (
+                            <Button key={index} style={{ marginRight: '10px' }} onClick={
+                                () => {
+                                    clickAction('Assassinate', {
+                                        targetPlayer: {
+                                            socketId: player.socketId,
+                                            username: player.username
+                                        }
+                                    });
+                                }
+                            }>{player.username}</Button>
+                        );
+                    }
+                })}
+            </div>
+        );
     } else if (actionState === ACTION_STATE.CHOOSING_CARD_TO_LOSE) {
         actionControls = (
             <div>
@@ -177,7 +201,7 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
                                             },
                                             character: action.character
                                         });
-                                    } else if (['Block with Duke', 'Block with Ambassador', 'Block With Captain'].includes(action.name)) {
+                                    } else if (['Block with Duke', 'Block with Ambassador', 'Block with Captain', 'Block with Contessa'].includes(action.name)) {
                                         clickAction(action.name);
                                     } else if (action.name === 'Pass') {
                                         clickAction('Pass');
@@ -242,7 +266,7 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
                         break;
                     case 'Assassinate':
                         actionFunc = () => {
-                            clickAction(action.name);
+                            setActionState(ACTION_STATE.CHOOSING_WHO_TO_ASSASSINATE)
                         };
                         break;
                     case 'Exchange':

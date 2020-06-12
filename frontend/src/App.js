@@ -7,6 +7,7 @@ import AllPlayers from './components/AllPlayers';
 import ActionControls from './components/ActionControls';
 import JoinGameScreen from './components/JoinGameScreen';
 import LobbyScreen from './components/LobbyScreen';
+import EventLog from './components/EventLog'
 import constants from './constants';
 
 
@@ -17,7 +18,9 @@ function App() {
     const GAME_STATE = {
         JOIN_ROOM: 'join_room',
         LOBBY: 'lobby',
-        IN_GAME: 'in_game'
+        IN_GAME: 'in_game',
+        LOST_GAME: 'lost_game',
+        WON_GAME: 'lost_game'
     };
 
     const ACTION_STATE = constants.ACTION_STATE;
@@ -30,6 +33,7 @@ function App() {
     const [devMode, setDevMode] = useState(true);
     const [actionPackage, setActionPackage] = useState(null);
     const [actionState, setActionState] = useState(ACTION_STATE.NONE);
+    const [events, setEvents] = useState([])
 
     useEffect(() => {
         const onJoinRoomSuccess = (data) => {
@@ -70,6 +74,21 @@ function App() {
             setPlayerInfo(player);
         };
 
+        const onUpdateEvents = (newEvents) => {
+            console.log('update events');
+            setEvents(newEvents)
+        };
+
+        const onLostGame = () => {
+            setCurMessage('You lost! 😡😡😡😡 >:(')
+            setCurGameState(GAME_STATE.LOST_GAME)
+        }
+
+        const onWinGame = () => {
+            setCurMessage('You Win! 🎉🎊🎉🎉🎊🎉🎉🎊🎉')
+            setCurGameState(GAME_STATE.WON_GAME)
+        }
+
         socket.on('joinRoomSuccess', onJoinRoomSuccess);
         socket.on('joinRoomPlayerInfo', onJoinRoomPlayerInfo);
         socket.on('joinRoomFailed', onJoinRoomFailed);
@@ -78,6 +97,8 @@ function App() {
         socket.on('actions', onActions);
         socket.on('updatePlayersInfo', onUpdatePlayersInfo);
         socket.on('updatePlayerInfo', onUpdatePlayerInfo);
+        socket.on('updateEvents', onUpdateEvents)
+        socket.on('lostGame', onLostGame)
 
         return () => {
             socket.off('joinRoomSuccess', onJoinRoomSuccess);
@@ -88,6 +109,8 @@ function App() {
             socket.off('actions', onActions);
             socket.off('updatePlayersInfo', onUpdatePlayersInfo);
             socket.off('updatePlayerInfo', onUpdatePlayerInfo);
+            socket.off('updateEvents', onUpdateEvents)
+            socket.on('lostGame', onLostGame)
         };
     }, []);
 
@@ -111,7 +134,7 @@ function App() {
             socket={socket}
             devMode={devMode}
         />;
-    } else if (curGameState === GAME_STATE.IN_GAME) {
+    } else if (curGameState === GAME_STATE.IN_GAME || curGameState === GAME_STATE.LOST_GAME) {
         const MyInfoContent = <MyInfo
             playerInfo={playerInfo}
             devMode={devMode}
@@ -120,6 +143,7 @@ function App() {
         const MessageContent = <Message
             message={(actionPackage && actionPackage.message) || curMessage}
             devMode={devMode}
+            lostGame={curGameState === GAME_STATE.LOST_GAME}
         />;
 
         const AllPlayerContent = <AllPlayers
@@ -138,6 +162,11 @@ function App() {
             setActionState={setActionState}
         />;
 
+        const EventLogContent = <EventLog
+            devMode={devMode}
+            events={events}
+        />
+
         let InGameContent;
         if (devMode) {
             InGameContent = (
@@ -145,6 +174,7 @@ function App() {
                     {MyInfoContent}
                     {MessageContent}
                     {AllPlayerContent}
+                    {EventLogContent}
                     {ActionControlsContent}
                 </Container >
             );
@@ -166,6 +196,7 @@ function App() {
                     }}>
                         {MyInfoContent}
                         {AllPlayerContent}
+                        {EventLogContent}
                     </div>
                     <div style={{
                         display: 'flex',

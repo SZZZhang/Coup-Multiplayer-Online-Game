@@ -1,7 +1,7 @@
 import React from 'react';
 import { Alert } from 'react-bootstrap';
 
-export default function Message({ message, devMode }) {
+export default function Message({ message, devMode, lostGame }) {
     if (devMode) {
         return (
             <div>
@@ -12,7 +12,7 @@ export default function Message({ message, devMode }) {
     } else {
         return (
             <div style={{ margin: 20 }}>
-                <Alert variant='secondary'>{message}</Alert>
+                <Alert variant={lostGame ? 'danger' : 'secondary'}>{message}</Alert>
             </div>
         );
     }

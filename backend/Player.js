@@ -1,8 +1,7 @@
-const Game = require('./game');
 class Player {
     constructor(username, socketId) {
         this.username = username;
-        this.socketId = socketId
+        this.socketId = socketId;
         this.coins = 2;
         this.cards = [];
     }
@@ -13,7 +12,7 @@ class Player {
             coins: this.coins,
             socketId: this.socketId,
             numberOfCards: this.cards.length,
-        }
+        };
     }
 
     Action(action, io, room) {
@@ -25,15 +24,19 @@ class Player {
             // TODO shuffle
             io.to(this.socketId).emit('exchangeCards', room.cards.slice(0, 3));
         } else if (action === 'Steal') {
-            for(let player of room.players) {
-                if(player.username === room.targetPlayerName) {
-                    player.coins = Math.max(0, player.coins - 2); 
+            this.coins += 2;
+            for (let player of room.players) {
+                if (player.username === room.targetPlayerName) {
+                    player.coins = Math.max(0, player.coins - 2);
+                    break;
                 }
             }
         } else if (action === 'Assassinate') {
-            for(let player of room.players) {
-                if(player.name === room.targetPlayerName) {
-                    //loseCards
+            console.log('Assassination in progress');
+            for (let player of room.players) {
+                if (player.username === room.targetPlayerName) {
+                    io.to(player.socketId).emit('chooseLoseCard', 'You have been assassinated. Choose a card to loose.');
+                    break;
                 }
             }
         }
