@@ -54,14 +54,10 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
             setActionState(ACTION_STATE.CHOOSING_MAIN_ACTION);
         };
 
-        const onExchangeCards = (newCards) => {
+        const onExchangeCards = (data) => {
             console.log('exchangeCards');
-            console.log({
-                cards: newCards
-            })
-            setActionPackage({
-                cards: newCards
-            });
+            console.log(data)
+            setActionPackage(data);
             setActionState(ACTION_STATE.PICKING_CARDS_TO_EXCHANGE);
         }
 
@@ -90,7 +86,7 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
 
     const onClickChooseNewCard = (cardName) => {
         const newCardArr = [...newCards, cardName];
-        if (newCardArr.length >= 2) {
+        if (newCardArr.length >= actionPackage.numberOfCards) {
             console.log('sending new cards selection')
             console.log(newCardArr)
             socket.emit('Exchange Cards', {
@@ -291,7 +287,7 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
         const cardsToPickFrom = [...playerInfo.cards, ...actionPackage.cards]
         actionControls = (
             <div>
-                <h3>Click on the two cards you wish to keep</h3>
+                <h3>Click on the {actionPackage.numberOfCards} cards you wish to keep</h3>
                 {cardsToPickFrom.map((card, index) => {
                     return (
                         <Button key={index} style={{ marginRight: '10px' }} onClick={

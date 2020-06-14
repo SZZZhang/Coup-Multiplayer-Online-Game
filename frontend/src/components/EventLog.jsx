@@ -21,9 +21,20 @@ export default function EventLog({ devMode, events }) {
                         <ul>
                             {
                                 events.map((event, index) => {
-                                    return <li key={index} style={event.priority === 1 ? { color: 'black' } : { color: 'grey' }}>
-                                        {event.name}
-                                    </li>;
+                                    if (event.priority === 1) {
+                                        return (
+                                            <li key={index}>
+                                                {event.name}
+                                            </li>
+                                        );
+                                    } else {
+                                        return (
+                                            <ul li key={index}>
+                                                <li>{event.name}</li>
+                                            </ul>
+                                        )
+                                    }
+
                                 })
                             }
                         </ul>

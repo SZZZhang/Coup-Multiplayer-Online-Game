@@ -22,7 +22,8 @@ class Player {
             this.coins += 3;
         } else if (action === 'Exchange') {
             // TODO shuffle
-            io.to(this.socketId).emit('exchangeCards', room.cards.slice(0, 3));
+            io.to(this.socketId).emit('exchangeCards', { cards: room.cards.slice(0, 3), 
+                numberOfCards: this.cards.length });
         } else if (action === 'Steal') {
             this.coins += 2;
             for (let player of room.players) {

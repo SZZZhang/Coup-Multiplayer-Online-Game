@@ -12,4 +12,12 @@ constants.ACTION_STATE = {
     CHOOSING_WHO_TO_ASSASSINATE: 'choosing_who_to_assassinate'
 };
 
+constants.GAME_STATE = {
+    JOIN_ROOM: 'join_room',
+    LOBBY: 'lobby',
+    IN_GAME: 'in_game',
+    LOST_GAME: 'lost_game',
+    WON_GAME: 'won_game'
+};
+
 export default constants;

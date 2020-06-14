@@ -15,13 +15,7 @@ const socket = io('http://localhost:5000');
 
 function App() {
 
-    const GAME_STATE = {
-        JOIN_ROOM: 'join_room',
-        LOBBY: 'lobby',
-        IN_GAME: 'in_game',
-        LOST_GAME: 'lost_game',
-        WON_GAME: 'lost_game'
-    };
+    const GAME_STATE = constants.GAME_STATE;
 
     const ACTION_STATE = constants.ACTION_STATE;
 
@@ -51,17 +45,23 @@ function App() {
             alert(message);
         };
 
+        const onStartRoomFailed = ({ message }) => {
+            alert(message);
+        };
+
         const onDealCards = (data) => {
             setCurGameState(GAME_STATE.IN_GAME);
             setPlayerInfo(data);
         };
 
         const onWaiting = (message) => {
-            setCurMessage(message);
+            if (curGameState === GAME_STATE.IN_GAME) {
+                setCurMessage(message);
+            }
         };
 
         const onActions = () => {
-            setCurMessage('Chose an action');
+            setCurMessage('Choose an action');
         };
 
         const onUpdatePlayersInfo = ({ playerList }) => {
@@ -80,18 +80,23 @@ function App() {
         };
 
         const onLostGame = () => {
-            setCurMessage('You lost! 😡😡😡😡 >:(')
+            console.log('got lose game event')
+            setCurMessage('You lost! 😡😡😡😡 Waiting for game to end...')
             setCurGameState(GAME_STATE.LOST_GAME)
+            setActionPackage(null);
         }
 
         const onWinGame = () => {
+            console.log('got win game event')
             setCurMessage('You Win! 🎉🎊🎉🎉🎊🎉🎉🎊🎉')
             setCurGameState(GAME_STATE.WON_GAME)
-        }
+            setActionPackage(null);
+        }        
 
         socket.on('joinRoomSuccess', onJoinRoomSuccess);
         socket.on('joinRoomPlayerInfo', onJoinRoomPlayerInfo);
         socket.on('joinRoomFailed', onJoinRoomFailed);
+        socket.on('startRoomFailed', onStartRoomFailed);
         socket.on('dealCards', onDealCards);
         socket.on('waiting', onWaiting);
         socket.on('actions', onActions);
@@ -99,18 +104,21 @@ function App() {
         socket.on('updatePlayerInfo', onUpdatePlayerInfo);
         socket.on('updateEvents', onUpdateEvents)
         socket.on('lostGame', onLostGame)
+        socket.on('winGame', onWinGame)
 
         return () => {
             socket.off('joinRoomSuccess', onJoinRoomSuccess);
             socket.off('joinRoomPlayerInfo', onJoinRoomPlayerInfo);
             socket.off('joinRoomFailed', onJoinRoomFailed);
+            socket.off('startRoomFailed', onStartRoomFailed);
             socket.off('dealCards', onDealCards);
             socket.off('waiting', onWaiting);
             socket.off('actions', onActions);
             socket.off('updatePlayersInfo', onUpdatePlayersInfo);
             socket.off('updatePlayerInfo', onUpdatePlayerInfo);
             socket.off('updateEvents', onUpdateEvents)
-            socket.on('lostGame', onLostGame)
+            socket.off('lostGame', onLostGame)
+            socket.off('winGame', onWinGame)
         };
     }, []);
 
@@ -134,7 +142,7 @@ function App() {
             socket={socket}
             devMode={devMode}
         />;
-    } else if (curGameState === GAME_STATE.IN_GAME || curGameState === GAME_STATE.LOST_GAME) {
+    } else if (curGameState === GAME_STATE.IN_GAME || curGameState === GAME_STATE.LOST_GAME || curGameState === GAME_STATE.WON_GAME) {
         const MyInfoContent = <MyInfo
             playerInfo={playerInfo}
             devMode={devMode}
@@ -143,7 +151,8 @@ function App() {
         const MessageContent = <Message
             message={(actionPackage && actionPackage.message) || curMessage}
             devMode={devMode}
-            lostGame={curGameState === GAME_STATE.LOST_GAME}
+            curGameState={curGameState}
+            socket={socket}
         />;
 
         const AllPlayerContent = <AllPlayers

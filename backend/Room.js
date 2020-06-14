@@ -6,6 +6,7 @@ class Room {
         this.owner = owner;
         this.turn = 0;
         this.events = [];
+        this.gameStart = false;
 
         this.passPlayers = 0;
         this.currPlayer = null;

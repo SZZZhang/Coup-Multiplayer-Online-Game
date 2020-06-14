@@ -44,7 +44,12 @@ io.on('connection', (socket) => {
     //joins game room
     socket.on('joinRoom', (data) => {
         room = rooms[data.roomName];
-        if (room && (room.players.length < 6)) {
+        if (room && (room.gameStart || room.players.length >= 6)) {
+            let message = 'The game room is full.';
+            if (room.gameStart) message = 'The game has already started';
+            socket.emit('joinRoomFailed', { message });
+        } else if (room && (room.players.length < 6)) {
+
             let userExists = false;
             for (const player of room.players) {
                 if (data.username === player.username) {
@@ -74,25 +79,22 @@ io.on('connection', (socket) => {
 
 
             }
-        } else if (room && room.players.length >= 6) {
-            socket.emit('joinRoomFailed', { message: 'Game room is already full.' });
         } else {
             socket.join(data.roomName);
             let owner = new Player(data.username, socket.id);
-            rooms[data.roomName] = (new Room(data.roomName, [...cards], [owner], owner));
+            room = new Room(data.roomName, [...cards], [owner], owner);
+            rooms[data.roomName] = room;
 
             socket.emit('joinRoomPlayerInfo', owner);
 
             socket.emit('joinRoomSuccess', {
                 player: owner,
-                room: rooms[data.roomName],
+                room: room,
                 playerList: rooms[data.roomName].players.map((player) => {
                     return player.getPublicPlayerInfo();
                 })
             });
 
-            //
-            room = rooms[data.roomName];
             currPlayer = owner;
             console.log('joined new room:', data.roomName);
         }
@@ -100,16 +102,19 @@ io.on('connection', (socket) => {
 
     //data must have: player
     socket.on('startGame', () => {
-        console.log('start game!');
-        //let room = rooms[Object.keys(io.sockets.adapter.sids[socket.id]).filter(item => item != socket.id)];
-        startGame(room);
+        if (room.players === 1) {
+            socket.emit('startGameFailed', { message: 'You must have at least one more player join this game room before starting the game.' });
+        } else {
+            console.log('start game!');
+            startGame(room);
 
-        let player = room.players[room.turn % room.players.length];
+            let player = room.players[room.turn % room.players.length];
 
-        for (let player1 of room.players) {
-            io.to(player1.socketId).emit('dealCards', player1);
+            for (let player1 of room.players) {
+                io.to(player1.socketId).emit('dealCards', player1);
+            }
+            sendTurnEvents(player, room);
         }
-        sendTurnEvents(player, room);
     });
 
 
@@ -201,7 +206,7 @@ io.on('connection', (socket) => {
 
     //data: targetPlayer(username, socketId)
     socket.on('Assassinate', (data) => {
-        currPlayer.coins -= 3; 
+        currPlayer.coins -= 3;
         room.targetPlayerName = data.targetPlayer.username;
         room.currAction = 'Assassinate';
         room.events.push(new Event(currPlayer.username + ' wants to assassinate ' + data.targetPlayer.username, 1));
@@ -319,9 +324,10 @@ io.on('connection', (socket) => {
             io.to(data.challenger.socketId).emit('chooseLoseCard', 'Your challenge failed. Choose a card to lose.');
         }
         else {
-            loseCard(currPlayer, room, data.revealedCardIndex);
+
             if (room.block) room.currPlayer.Action(room.currAction, io, room);
             room.events.push(new Event('Challenge successful', 0));
+            loseCard(currPlayer, room, data.revealedCardIndex);
             io.in(room.name).emit('updateEvents', room.events);
             sendTurnEvents(currPlayer, room);
         }
@@ -334,7 +340,7 @@ io.on('connection', (socket) => {
             if (!room.challenge) {
                 if (!room.block)
                     room.currPlayer.Action(room.currAction, io, room);
-            
+
                 if (room.currAction === 'Exchange') {
                     emitToAllButThesePlayers([room.currPlayer.username], room, io, 'waiting',
                         'Waiting for ' + room.currPlayer.username + ' to exchange cards');
@@ -344,7 +350,7 @@ io.on('connection', (socket) => {
                         'Waiting for ' + room.targetPlayerName + ' to choose a card to lose');
                 }
             }
-        
+
             if ((room.currAction !== 'Exchange' && room.currAction !== 'Assassinate') || room.block) {
                 sendTurnEvents(currPlayer, room);
             }
@@ -365,6 +371,7 @@ io.on('connection', (socket) => {
 function startGame(room) {
     shuffle(room.cards);
     shuffle(room.players);
+    room.gameStart = true;
 
     for (let player of room.players) {
         player.cards = [room.cards.pop(), room.cards.pop()];
@@ -372,10 +379,12 @@ function startGame(room) {
 }
 
 function loseCard(player, room, cardToLoseIndex) {
+    room.cards.push(player.cards[cardToLoseIndex]);
     if (player.cards.length > 1) {
         player.cards.splice(cardToLoseIndex, 1);
     } else {
         deletePlayer(player, room);
+        checkForWinner(room);
     }
 }
 
@@ -388,7 +397,7 @@ function randomCard(player, room, cardIndex) {
 }
 
 function deletePlayer(player, room) {
-
+    player.cards = [];
     for (let i = 0; i < room.players.length; i++) {
         if (room.players[i] === player) {
             room.players.splice(i, 1);
@@ -396,6 +405,7 @@ function deletePlayer(player, room) {
         }
     }
     io.to(player.socketId).emit('lostGame', ':<');
+    io.to(player.socketId).emit('updatePlayerInfo', player);
 }
 
 //maybe delete currPlayer param 
@@ -457,8 +467,16 @@ function removeFromDeck(room, cardCharacters) {
     for (let cardCharacter of cardCharacters) {
         for (let i = 0; i < room.cards.length; i++) {
             if (cardCharacter === room.cards[i]) {
-                room.cards.splice(i, 1); break;
+                room.cards.splice(i, 1);
+                break;
             }
         }
+    }
+}
+
+function checkForWinner(room) {
+    if (room.players.length === 1) {
+        room.events.push(new Event(room.players[0].username + ' is the winner!', 1));
+        io.to(room.players[0].socketId).emit('winGame');
     }
 }
