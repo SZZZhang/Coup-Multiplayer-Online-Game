@@ -29,7 +29,7 @@ export default function EventLog({ devMode, events }) {
                                         );
                                     } else {
                                         return (
-                                            <ul li key={index}>
+                                            <ul key={index}>
                                                 <li>{event.name}</li>
                                             </ul>
                                         )

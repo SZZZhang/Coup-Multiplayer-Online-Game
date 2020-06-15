@@ -1,5 +1,7 @@
 import React from 'react';
 import { Container, Form, Button } from 'react-bootstrap';
+import Card from './CardStack'
+import CardStack from './CardStack';
 
 export default function JoinGameScreen({ socket }) {
 
@@ -12,7 +14,7 @@ export default function JoinGameScreen({ socket }) {
     };
 
     return (
-        <Container className='mt-5'>
+        <Container className='mt-5'>                      
             <h1 className='mb-4'>Coup, the game.</h1>
             <Form onSubmit={(e) => { onCreateJoinRoom(e); return false; }}>
                 <Form.Group controlId="room-name">

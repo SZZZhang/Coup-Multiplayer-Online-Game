@@ -1,7 +1,9 @@
 import React from 'react';
 import { Card } from 'react-bootstrap';
+import CardStack from './CardStack'
 
 export default function MyInfo({ playerInfo, devMode }) {
+
     if (devMode) {
         return (
             <div>
@@ -12,7 +14,7 @@ export default function MyInfo({ playerInfo, devMode }) {
     } else {
         return (
             <div>
-                <Card style={{ width: '18rem' }}>
+                <Card>
                     <Card.Body>
                         <Card.Title>
                             My Info
@@ -25,13 +27,19 @@ export default function MyInfo({ playerInfo, devMode }) {
                         </div>
                         <div style={{ marginBottom: 10 }}>
                             <span style={{ fontWeight: 'bold' }}>My Cards</span>
-                            <ul>
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'row',
+                                margin: 10
+                            }}>
                                 {
                                     playerInfo.cards.map((card, index) => {
-                                        return <li key={index}>{card}</li>;
+                                        return (
+                                            <CardStack key={index} name={card} number={1} />
+                                        )
                                     })
                                 }
-                            </ul>
+                            </div>
                         </div>
                     </Card.Body>
                 </Card>

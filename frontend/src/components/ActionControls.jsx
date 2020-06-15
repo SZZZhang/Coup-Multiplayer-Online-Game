@@ -47,13 +47,6 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
             setActionState(ACTION_STATE.SHOWDOWN);
         };
 
-        const onActions = (actions) => {
-            console.log('on actions');
-            console.log(actions)
-            setActionPackage(actions);
-            setActionState(ACTION_STATE.CHOOSING_MAIN_ACTION);
-        };
-
         const onExchangeCards = (data) => {
             console.log('exchangeCards');
             console.log(data)
@@ -65,7 +58,6 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
         socket.on('chooseLoseCard', onChooseLoseCard);
         socket.on('counterActions', onCounterActions);
         socket.on('showdown', onShowdown);
-        socket.on('actions', onActions);
         socket.on('exchangeCards', onExchangeCards)
 
         return () => {
@@ -73,7 +65,6 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
             socket.off('chooseLoseCard', onChooseLoseCard);
             socket.off('counterActions', onCounterActions);
             socket.off('showdown', onShowdown);
-            socket.off('actions', onActions);
             socket.off('exchangeCards', onExchangeCards)
         };
     }, [playerInfo]);
@@ -235,7 +226,7 @@ export default function ActionControls({ playerList, playerInfo, socket, actionS
                 })}
             </div>
         );
-    } else if (actionState === ACTION_STATE.CHOOSING_MAIN_ACTION) {
+    } else if (actionState === ACTION_STATE.CHOOSING_MAIN_ACTION) {        
         actionControls = actionPackage.map((action, index) => {
             if (action.show) {
                 let actionFunc;

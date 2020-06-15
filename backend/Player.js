@@ -15,6 +15,11 @@ class Player {
         };
     }
 
+    reset(){
+        this.coins = 2;
+        this.cards = [];
+    }
+
     Action(action, io, room) {
         if (action === 'Foreign Aid') {
             this.coins += 2;

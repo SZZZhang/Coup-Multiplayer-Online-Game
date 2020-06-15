@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card } from 'react-bootstrap';
+import CardStack from './CardStack';
 
 export default function AllPlayers({ playerList, devMode }) {
     if (devMode) {
@@ -22,13 +23,18 @@ export default function AllPlayers({ playerList, devMode }) {
                                 playerList.map((player, index) => {
                                     return <li key={index}>
                                         <span style={{ fontWeight: 'bold' }}>{player.username}</span> - Coins: {player.coins} - Number of Cards: {player.numberOfCards}
+                                        <div style={{
+                                            margin: 5
+                                        }}>
+                                            <CardStack number={parseInt(player.numberOfCards)} small />
+                                        </div>
                                     </li>;
                                 })
                             }
                         </ul>
                     </Card.Body>
                 </Card>
-            </div>
+            </div >
         );
     }
 }

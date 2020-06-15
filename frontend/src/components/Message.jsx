@@ -2,10 +2,7 @@ import React from 'react';
 import { Alert } from 'react-bootstrap';
 import constants from '../constants'
 
-export default function Message({ message, devMode, curGameState, socket }) {
-    const restartGame = () => {
-        socket.emit('startGame');
-    }
+export default function Message({ message, devMode, curGameState, socket }) {   
 
     if (devMode) {
         return (
@@ -35,7 +32,6 @@ export default function Message({ message, devMode, curGameState, socket }) {
                             }}>
                                 <img src='https://media1.tenor.com/images/95b086d08546be2b72b7dfad7a87634e/tenor.gif' />
                             </div>
-                            <button className = 'btn btn-primary' onClick={restartGame}>Restart Game</button>
                         </div>
                         : null}
                 </Alert>

@@ -16,12 +16,6 @@ app.use(express.static('.'));
 
 let rooms = {};
 
-let cards = ['Duke', 'Duke', 'Duke',
-    'Assassin', 'Assassin', 'Assassin',
-    'Ambassador', 'Ambassador', 'Ambassador',
-    'Captain', 'Captain', 'Captain',
-    'Contessa', 'Contessa', 'Contessa'];
-
 class Event {
     constructor(name, priority) {
         this.name = name;
@@ -82,7 +76,7 @@ io.on('connection', (socket) => {
         } else {
             socket.join(data.roomName);
             let owner = new Player(data.username, socket.id);
-            room = new Room(data.roomName, [...cards], [owner], owner);
+            room = new Room(data.roomName, [owner], owner);
             rooms[data.roomName] = room;
 
             socket.emit('joinRoomPlayerInfo', owner);
@@ -108,15 +102,23 @@ io.on('connection', (socket) => {
             console.log('start game!');
             startGame(room);
 
-            let player = room.players[room.turn % room.players.length];
-
             for (let player1 of room.players) {
                 io.to(player1.socketId).emit('dealCards', player1);
             }
-            sendTurnEvents(player, room);
+            sendTurnEvents(room);
         }
     });
-
+    socket.on('restartGame', () => {
+        room.restartGame();
+        startGame(room);
+        console.log(room);
+        for(let player of room.players) {
+            io.to(player.socketId).emit('dealCards', player);
+        }
+        io.in(room.name).emit('updateEvents', room.events);
+        io.in(room.name).emit('updateRevealedCards', room.revealedCards);
+        sendTurnEvents(room);
+    });
 
     socket.on('Income', () => {
 
@@ -125,7 +127,7 @@ io.on('connection', (socket) => {
 
         room.events.push(new Event(currPlayer.username + ' used Income', 1));
         io.in(room.name).emit('updateEvents', room.events);
-        sendTurnEvents(currPlayer, room);
+        sendTurnEvents(room);
     });
 
     //data: player, playerCouped
@@ -201,7 +203,7 @@ io.on('connection', (socket) => {
         addToDeck(room, currPlayer.cards);
         removeFromDeck(room, data.newCards);
         currPlayer.cards = data.newCards;
-        sendTurnEvents(currPlayer, room);
+        sendTurnEvents(room);
     });
 
     //data: targetPlayer(username, socketId)
@@ -324,13 +326,13 @@ io.on('connection', (socket) => {
             io.to(data.challenger.socketId).emit('chooseLoseCard', 'Your challenge failed. Choose a card to lose.');
         }
         else {
-
             if (room.block) room.currPlayer.Action(room.currAction, io, room);
             room.events.push(new Event('Challenge successful', 0));
             loseCard(currPlayer, room, data.revealedCardIndex);
             io.in(room.name).emit('updateEvents', room.events);
-            sendTurnEvents(currPlayer, room);
+            sendTurnEvents(room);
         }
+        io.in(room.name).emit('updateRevealedCards', room.revealedCards);
     });
 
     // originalAction(string)
@@ -352,7 +354,7 @@ io.on('connection', (socket) => {
             }
 
             if ((room.currAction !== 'Exchange' && room.currAction !== 'Assassinate') || room.block) {
-                sendTurnEvents(currPlayer, room);
+                sendTurnEvents(room);
             }
         } else {
             socket.emit('waiting', 'Waiting for other players');
@@ -363,7 +365,8 @@ io.on('connection', (socket) => {
     //data: player,cardToLoseIndex
     socket.on('lostCard', (data) => {
         loseCard(currPlayer, room, data.cardToLoseIndex);
-        sendTurnEvents(currPlayer, room);
+        io.in(room.name).emit('updateRevealedCards', room.revealedCards );
+        sendTurnEvents(room);
     });
 
 });
@@ -379,7 +382,7 @@ function startGame(room) {
 }
 
 function loseCard(player, room, cardToLoseIndex) {
-    room.cards.push(player.cards[cardToLoseIndex]);
+    room.revealedCards.push(player.cards[cardToLoseIndex]);
     if (player.cards.length > 1) {
         player.cards.splice(cardToLoseIndex, 1);
     } else {
@@ -389,7 +392,7 @@ function loseCard(player, room, cardToLoseIndex) {
 }
 
 function randomCard(player, room, cardIndex) {
-    room.cards.push(player.cards[cardIndex]);
+    room.revealedCards.push(player.cards[cardIndex]);
     player.cards.splice(cardIndex, 1);
 
     shuffle(room.cards);
@@ -398,6 +401,7 @@ function randomCard(player, room, cardIndex) {
 
 function deletePlayer(player, room) {
     player.cards = [];
+    room.lostPlayers.push(player); 
     for (let i = 0; i < room.players.length; i++) {
         if (room.players[i] === player) {
             room.players.splice(i, 1);
@@ -408,8 +412,7 @@ function deletePlayer(player, room) {
     io.to(player.socketId).emit('updatePlayerInfo', player);
 }
 
-//maybe delete currPlayer param 
-function sendTurnEvents(currPlayer, room) {
+function sendTurnEvents(room) {
     room.reset();
 
     for (let player of room.players) {
@@ -478,5 +481,6 @@ function checkForWinner(room) {
     if (room.players.length === 1) {
         room.events.push(new Event(room.players[0].username + ' is the winner!', 1));
         io.to(room.players[0].socketId).emit('winGame');
+        io.in(room.name).emit('gameOver');
     }
 }

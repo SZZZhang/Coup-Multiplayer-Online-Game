@@ -8,6 +8,7 @@ import ActionControls from './components/ActionControls';
 import JoinGameScreen from './components/JoinGameScreen';
 import LobbyScreen from './components/LobbyScreen';
 import EventLog from './components/EventLog'
+import RevealedCards from './components/RevealedCards'
 import constants from './constants';
 
 
@@ -20,6 +21,7 @@ function App() {
     const ACTION_STATE = constants.ACTION_STATE;
 
     const [curGameState, setCurGameState] = useState(GAME_STATE.JOIN_ROOM);
+    const [gameOver, setGameOver] = useState(false);
     const [playerList, setPlayerList] = useState([]);
     const [roomOwner, setRoomOwner] = useState(null);
     const [playerInfo, setPlayerInfo] = useState({});
@@ -28,6 +30,11 @@ function App() {
     const [actionPackage, setActionPackage] = useState(null);
     const [actionState, setActionState] = useState(ACTION_STATE.NONE);
     const [events, setEvents] = useState([])
+    const [revealedCards, setRevealedCards] = useState([])
+
+    const restartGame = () => {
+        socket.emit('restartGame');
+    }
 
     useEffect(() => {
         const onJoinRoomSuccess = (data) => {
@@ -50,6 +57,8 @@ function App() {
         };
 
         const onDealCards = (data) => {
+            console.log('deal cards')
+            setGameOver(false);
             setCurGameState(GAME_STATE.IN_GAME);
             setPlayerInfo(data);
         };
@@ -60,8 +69,12 @@ function App() {
             }
         };
 
-        const onActions = () => {
-            setCurMessage('Choose an action');
+        const onActions = (actions) => {
+            if (curGameState === GAME_STATE.IN_GAME) {
+                setCurMessage('Choose an action');
+                setActionPackage(actions);
+                setActionState(ACTION_STATE.CHOOSING_MAIN_ACTION);
+            }
         };
 
         const onUpdatePlayersInfo = ({ playerList }) => {
@@ -91,7 +104,15 @@ function App() {
             setCurMessage('You Win! 🎉🎊🎉🎉🎊🎉🎉🎊🎉')
             setCurGameState(GAME_STATE.WON_GAME)
             setActionPackage(null);
-        }        
+        }
+
+        const onGameOver = () => {
+            setGameOver(true);
+        }
+
+        const onUpdateRevealedCards = (revealedCards) => {
+            setRevealedCards(revealedCards)
+        }
 
         socket.on('joinRoomSuccess', onJoinRoomSuccess);
         socket.on('joinRoomPlayerInfo', onJoinRoomPlayerInfo);
@@ -105,6 +126,8 @@ function App() {
         socket.on('updateEvents', onUpdateEvents)
         socket.on('lostGame', onLostGame)
         socket.on('winGame', onWinGame)
+        socket.on('gameOver', onGameOver)
+        socket.on('updateRevealedCards', onUpdateRevealedCards)
 
         return () => {
             socket.off('joinRoomSuccess', onJoinRoomSuccess);
@@ -119,8 +142,10 @@ function App() {
             socket.off('updateEvents', onUpdateEvents)
             socket.off('lostGame', onLostGame)
             socket.off('winGame', onWinGame)
+            socket.off('gameOver', onGameOver)
+            socket.off('updateRevealedCards', onUpdateRevealedCards)
         };
-    }, []);
+    }, [curGameState]);
 
     useEffect(() => {
         return () => {
@@ -176,6 +201,11 @@ function App() {
             events={events}
         />
 
+        const RevealedCardsContent = <RevealedCards
+            devMode={devMode}
+            revealedCards={revealedCards}
+        />
+
         let InGameContent;
         if (devMode) {
             InGameContent = (
@@ -185,6 +215,7 @@ function App() {
                     {AllPlayerContent}
                     {EventLogContent}
                     {ActionControlsContent}
+                    {RevealedCardsContent}
                 </Container >
             );
         } else {
@@ -197,15 +228,24 @@ function App() {
                     }}>
                         {MessageContent}
                     </div>
+                    <div>
+                        {
+                            gameOver ?
+                                <button className='btn btn-primary' onClick={restartGame}>Restart Game</button>
+                                : null
+                        }
+                    </div>
                     <div style={{
                         display: 'flex',
                         flexDirection: 'row',
+                        flexWrap: 'wrap',
                         justifyContent: 'space-evenly',
                         marginBottom: 20
                     }}>
                         {MyInfoContent}
                         {AllPlayerContent}
                         {EventLogContent}
+                        {RevealedCardsContent}
                     </div>
                     <div style={{
                         display: 'flex',
