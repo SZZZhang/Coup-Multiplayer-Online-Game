@@ -392,7 +392,7 @@ function loseCard(player, room, cardToLoseIndex) {
 }
 
 function randomCard(player, room, cardIndex) {
-    room.revealedCards.push(player.cards[cardIndex]);
+    room.cards.push(player.cards[cardIndex]);
     player.cards.splice(cardIndex, 1);
 
     shuffle(room.cards);
@@ -413,6 +413,7 @@ function deletePlayer(player, room) {
 }
 
 function sendTurnEvents(room) {
+    console.log('deck: ' + room.cards);
     room.reset();
 
     for (let player of room.players) {

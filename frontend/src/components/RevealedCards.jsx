@@ -1,6 +1,7 @@
 import React from 'react'
 import { useState, useEffect } from 'react';
 import { Card } from 'react-bootstrap'
+import CardStack from './CardStack';
 
 export default function EventLog({ devMode, revealedCards }) {
     if (devMode) {
@@ -11,24 +12,35 @@ export default function EventLog({ devMode, revealedCards }) {
             </div>
         );
     } else {
+
+        const cardMap = {};
+        for (const card of revealedCards) {
+            if (!cardMap[card]) {
+                cardMap[card] = 0;
+            }
+            cardMap[card]++
+        }
+
         return (
             <div>
-                <Card style={{ width: '18rem' }}>
+                <Card>
                     <Card.Body>
                         <Card.Title>
                             Revealed Cards
                         </Card.Title>
-                        <ul>
+                        <div style={{
+                            display: 'inline-flex',
+                            flexDirection: 'row',
+                            width: '100%'
+                        }}>
                             {
-                                revealedCards.map((card, index) => {
+                                Object.keys(cardMap).map((card, index) => {
                                     return (
-                                        <li key={index}>
-                                            {card}
-                                        </li>
+                                        <CardStack number={cardMap[card]} name={card} />
                                     )
                                 })
                             }
-                        </ul>
+                        </div>
                     </Card.Body>
                 </Card>
             </div>

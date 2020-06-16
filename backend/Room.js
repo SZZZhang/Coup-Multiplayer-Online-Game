@@ -7,7 +7,7 @@ let deck = ['Duke', 'Duke', 'Duke',
 class Room {
     constructor(name, players, owner) {
         this.name = name;
-        this.cards = deck;
+        this.cards = [...deck];
         this.players = players;
         this.owner = owner;
         this.turn = 0;
