@@ -10,6 +10,7 @@ import LobbyScreen from './components/LobbyScreen';
 import EventLog from './components/EventLog'
 import RevealedCards from './components/RevealedCards'
 import constants from './constants';
+import EndGameScreen from './components/EndGameScreen';
 
 
 const socket = io('http://localhost:5000');
@@ -22,6 +23,7 @@ function App() {
 
     const [curGameState, setCurGameState] = useState(GAME_STATE.JOIN_ROOM);
     const [gameOver, setGameOver] = useState(false);
+    const [leaderboard, setLeaderboard] = useState(null);
     const [playerList, setPlayerList] = useState([]);
     const [roomOwner, setRoomOwner] = useState(null);
     const [playerInfo, setPlayerInfo] = useState({});
@@ -30,11 +32,7 @@ function App() {
     const [actionPackage, setActionPackage] = useState(null);
     const [actionState, setActionState] = useState(ACTION_STATE.NONE);
     const [events, setEvents] = useState([])
-    const [revealedCards, setRevealedCards] = useState([])
-
-    const restartGame = () => {
-        socket.emit('restartGame');
-    }
+    const [revealedCards, setRevealedCards] = useState([])   
 
     useEffect(() => {
         const onJoinRoomSuccess = (data) => {
@@ -59,6 +57,7 @@ function App() {
         const onDealCards = (data) => {
             console.log('deal cards')
             setGameOver(false);
+            setLeaderboard(null);
             setCurGameState(GAME_STATE.IN_GAME);
             setPlayerInfo(data);
         };
@@ -93,6 +92,7 @@ function App() {
         };
 
         const onLostGame = () => {
+            setGameOver(true);
             console.log('got lose game event')
             setCurMessage('You lost! 😡😡😡😡 Waiting for game to end...')
             setCurGameState(GAME_STATE.LOST_GAME)
@@ -106,8 +106,9 @@ function App() {
             setActionPackage(null);
         }
 
-        const onGameOver = () => {
+        const onGameOver = (leaderboard) => {
             setGameOver(true);
+            setLeaderboard(leaderboard);
         }
 
         const onUpdateRevealedCards = (revealedCards) => {
@@ -167,7 +168,7 @@ function App() {
             socket={socket}
             devMode={devMode}
         />;
-    } else if (curGameState === GAME_STATE.IN_GAME || curGameState === GAME_STATE.LOST_GAME || curGameState === GAME_STATE.WON_GAME) {
+    } else if (curGameState === GAME_STATE.IN_GAME) {
         const MyInfoContent = <MyInfo
             playerInfo={playerInfo}
             devMode={devMode}
@@ -228,13 +229,6 @@ function App() {
                     }}>
                         {MessageContent}
                     </div>
-                    <div>
-                        {
-                            gameOver ?
-                                <button className='btn btn-primary' onClick={restartGame}>Restart Game</button>
-                                : null
-                        }
-                    </div>
                     <div style={{
                         display: 'flex',
                         flexDirection: 'row',
@@ -259,6 +253,15 @@ function App() {
             );
         }
         AppContent = InGameContent;
+    } else if (curGameState === GAME_STATE.LOST_GAME || curGameState === GAME_STATE.WON_GAME) {
+        AppContent = (
+            <EndGameScreen
+                devMode={devMode}
+                curGameState={curGameState}
+                socket={socket}
+                leaderboard={leaderboard}
+            />
+        )
     }
 
     return (

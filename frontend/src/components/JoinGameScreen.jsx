@@ -10,7 +10,11 @@ export default function JoinGameScreen({ socket }) {
         e.preventDefault();
         const roomName = document.getElementById('room-name').value;
         const userName = document.getElementById('user-name').value;
-        socket.emit('joinRoom', { roomName: roomName, username: userName });
+        if (userName.trim().length > 0) {
+            socket.emit('joinRoom', { roomName: roomName, username: userName });
+        } else {
+            alert('You username is too short')
+        }
         return false;
     };
 

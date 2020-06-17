@@ -15,6 +15,7 @@ class Room {
         this.lostPlayers = [];
         this.gameStart = false;
         this.revealedCards = [];
+        this.leaderBoard = [];
 
         this.passPlayers = 0;
         this.currPlayer = null;
@@ -37,13 +38,21 @@ class Room {
 
     restartGame() {
         this.revealedCards = [];
-        this.cards = deck;
+        this.cards = [...deck];
         this.players = [...this.lostPlayers, ...this.players];
         this.lostPlayers = [];
         this.players.map((player) => player.reset());
         this.turn = 0;
         this.events = [];
         this.reset();
+    }
+
+    getNewLeaderBoard(winner) {
+        winner.wins++;
+        this.leaderBoard = [...this.lostPlayers.map((a) => a.getPublicPlayerInfo()),
+            ...this.players.map((a) => a.getPublicPlayerInfo())]; 
+        this.leaderBoard.sort((a,b) => (a.wins < b.wins)? 1 : -1); 
+        return this.leaderBoard;
     }
 }
 

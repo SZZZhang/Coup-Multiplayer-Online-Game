@@ -36,7 +36,7 @@ export default function EventLog({ devMode, revealedCards }) {
                             {
                                 Object.keys(cardMap).map((card, index) => {
                                     return (
-                                        <CardStack number={cardMap[card]} name={card} />
+                                        <CardStack key={index} number={cardMap[card]} name={card} />
                                     )
                                 })
                             }

@@ -1,4 +1,4 @@
-
+//sometimes an extra player appears in lostPlayers 
 var express = require('express');
 var app = express();
 
@@ -111,8 +111,8 @@ io.on('connection', (socket) => {
     socket.on('restartGame', () => {
         room.restartGame();
         startGame(room);
-        console.log(room);
-        for(let player of room.players) {
+
+        for (let player of room.players) {
             io.to(player.socketId).emit('dealCards', player);
         }
         io.in(room.name).emit('updateEvents', room.events);
@@ -365,7 +365,7 @@ io.on('connection', (socket) => {
     //data: player,cardToLoseIndex
     socket.on('lostCard', (data) => {
         loseCard(currPlayer, room, data.cardToLoseIndex);
-        io.in(room.name).emit('updateRevealedCards', room.revealedCards );
+        io.in(room.name).emit('updateRevealedCards', room.revealedCards);
         sendTurnEvents(room);
     });
 
@@ -400,8 +400,9 @@ function randomCard(player, room, cardIndex) {
 }
 
 function deletePlayer(player, room) {
+    console.log('delete player');
     player.cards = [];
-    room.lostPlayers.push(player); 
+    room.lostPlayers.push(player);
     for (let i = 0; i < room.players.length; i++) {
         if (room.players[i] === player) {
             room.players.splice(i, 1);
@@ -413,7 +414,6 @@ function deletePlayer(player, room) {
 }
 
 function sendTurnEvents(room) {
-    console.log('deck: ' + room.cards);
     room.reset();
 
     for (let player of room.players) {
@@ -479,9 +479,13 @@ function removeFromDeck(room, cardCharacters) {
 }
 
 function checkForWinner(room) {
+    console.log('checking for winners');
+    console.log('players: ' + room.players.length + ' lost players: ' + room.lostPlayers.length);
     if (room.players.length === 1) {
+        console.log('found winner!');
         room.events.push(new Event(room.players[0].username + ' is the winner!', 1));
+
         io.to(room.players[0].socketId).emit('winGame');
-        io.in(room.name).emit('gameOver');
+        io.in(room.name).emit('gameOver', room.getNewLeaderBoard(room.players[0]));
     }
 }
