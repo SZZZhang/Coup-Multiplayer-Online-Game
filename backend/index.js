@@ -33,6 +33,17 @@ io.on('connection', (socket) => {
     console.log('connected to server ' + socket.id);
     socket.on('disconnect', () => {
         console.log('user disconnected ' + socket.id);
+        if (currPlayer && room) {
+            currPlayer.setInactive(room);
+
+            for (let i = 0; i < room.players.length; i++) {
+                if (room.players[i].username === currPlayer.username) {
+                    room.players.splice(i, 1); 
+                    room.lostPlayers.push(currPlayer);
+                    break;
+                }
+            }
+        }
     });
 
     //joins game room
@@ -222,10 +233,10 @@ io.on('connection', (socket) => {
         });
         emitToAllButThesePlayers([data.targetPlayer.username, currPlayer.username],
             room, io, 'counterActions', {
-                message: currPlayer.username + ' wants to assassinate ' + data.targetPlayer.username,
-                actions: Game.getCounterActions('Assassinate'),
-                player: currPlayer.getPublicPlayerInfo(),
-            });
+            message: currPlayer.username + ' wants to assassinate ' + data.targetPlayer.username,
+            actions: Game.getCounterActions('Assassinate'),
+            player: currPlayer.getPublicPlayerInfo(),
+        });
     });
 
     socket.on('Block with Contessa', () => {
@@ -257,10 +268,10 @@ io.on('connection', (socket) => {
         });
         emitToAllButThesePlayers([data.targetPlayer.username, currPlayer.username],
             room, io, 'counterActions', {
-                message: currPlayer.username + ' wants to steal from ' + data.targetPlayer.username,
-                actions: Game.getCounterActions('Steal'),
-                player: currPlayer.getPublicPlayerInfo(),
-            });
+            message: currPlayer.username + ' wants to steal from ' + data.targetPlayer.username,
+            actions: Game.getCounterActions('Steal'),
+            player: currPlayer.getPublicPlayerInfo(),
+        });
     });
 
     socket.on('Block with Captain', () => {

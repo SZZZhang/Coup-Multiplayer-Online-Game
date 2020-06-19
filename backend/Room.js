@@ -16,7 +16,8 @@ class Room {
         this.gameStart = false;
         this.revealedCards = [];
         this.leaderBoard = [];
-
+        this.inactivePlayers = [];
+        
         this.passPlayers = 0;
         this.currPlayer = null;
         this.currAction = null;

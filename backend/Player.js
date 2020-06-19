@@ -5,6 +5,7 @@ class Player {
         this.coins = 2;
         this.cards = [];
         this.wins = 0;
+        this.active = true; 
     }
 
     getPublicPlayerInfo() {
@@ -52,6 +53,11 @@ class Player {
 
     Income() {
         this.coins++;
+    }
+
+    setInactive(room) {
+        this.active  = false;
+        room.inactivePlayers.push(this); 
     }
 }
 
